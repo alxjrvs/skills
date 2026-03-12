@@ -21,8 +21,9 @@ Two glyphs are used in this setup:
 | `SL` | `` | U+E0BC | **Left** | Forward-slash `/` | Segment entry |
 | `BS` | `` | U+E0BA | **Right** | Backslash `\` | Sub-split or exit |
 
-**Reading the table:** "FG side = Left" means the FG color fills the left triangle of the
-glyph. To blend with the terminal background on the left, set `fg=TERM_BG`.
+**Reading the table:** "FG side = Left" means FG fills the left triangle; "FG side = Right"
+means FG fills the right triangle. To blend with the terminal background on the FG-dominant
+side, set `fg=TERM_BG` on that side.
 
 ---
 
@@ -48,8 +49,10 @@ Use inside a segment to split a bright value area from a darker label area.
 #[bg=LABEL_BG, fg=#f0f0f0] LABEL TEXT
 ```
 
-- Left side (BG = VALUE_BG): continues the value segment
-- Right side (FG = LABEL_BG): bleeds into the label segment that follows
+- Left side (BG = VALUE_BG): background fills the left (BG-dominated) side — continues the value segment visually
+- Right side (FG = LABEL_BG): FG fills the right (FG-dominated) side — bleeds into the label color that follows
+
+Note: the `bg=LABEL_BG` on the label text line is required — it explicitly sets the background to match the glyph's destination. Without it, the background may not carry over correctly.
 
 ### 3. Inter-segment valley (BS exit + SL entry)
 
@@ -68,30 +71,30 @@ Use between two segments to create a thin diagonal "V" of terminal background.
 
 ## Worked Example: CPU Segment
 
-From `status-right` in `tmux-powerline.sh`. Variables: `CPU_BG` = bright CPU color,
-`CPU_DK` = darker CPU label color, `TERM_BG` = terminal background (`#282c34`).
+From `status-right` in `tmux-powerline.sh`. Variables: `CPU_VAL` = bright CPU color,
+`CPU_LBL` = darker CPU label color, `TERM_BG` = terminal background (`#282c34`).
 
 ```sh
-# 1. Entry: terminal BG → CPU_BG via SL
+# 1. Entry: terminal BG → CPU_VAL via SL
 #    FG=TERM_BG (left side blends with bar background)
-#    BG=CPU_BG  (right side enters segment)
-o="#[bg=${CPU_BG},fg=${TERM_BG}]${SL}"
+#    BG=CPU_VAL  (right side enters segment)
+o="#[bg=${CPU_VAL},fg=${TERM_BG}]${SL}"
 
 # 2. Value text: CPU percentage on bright background
-o="${o}#[bg=${CPU_BG},fg=#f0f0f0] ${cpu_display} "
+o="${o}#[bg=${CPU_VAL},fg=#f0f0f0] ${cpu_display} "
 
-# 3. Sub-split: CPU_BG → CPU_DK via BS
-#    BG=CPU_BG (left side continues bright area)
-#    FG=CPU_DK (right side bleeds into label color)
-o="${o}#[bg=${CPU_BG},fg=${CPU_DK}]${BS}"
+# 3. Sub-split: CPU_VAL → CPU_LBL via BS
+#    BG=CPU_VAL (left side continues bright area)
+#    FG=CPU_LBL (right side bleeds into label color)
+o="${o}#[bg=${CPU_VAL},fg=${CPU_LBL}]${BS}"
 
 # 4. Label text: "CPU" on darker background
-o="${o}#[bg=${CPU_DK},fg=#f0f0f0,nobold] CPU "
+o="${o}#[bg=${CPU_LBL},fg=#f0f0f0,nobold] CPU "
 
-# 5. Exit: CPU_DK → TERM_BG via BS (before next segment's SL entry)
-#    BG=CPU_DK (left side finishes segment)
+# 5. Exit: CPU_LBL → TERM_BG via BS (before next segment's SL entry)
+#    BG=CPU_LBL (left side finishes segment)
 #    FG=TERM_BG (right side returns to terminal BG)
-o="${o}#[bg=${CPU_DK},fg=${TERM_BG}]${BS}"
+o="${o}#[bg=${CPU_LBL},fg=${TERM_BG}]${BS}"
 ```
 
 The next segment then starts with its own SL entry from TERM_BG, completing the valley.
