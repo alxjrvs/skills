@@ -111,6 +111,16 @@ A `/tmp/claude-active-${TMUX_PANE}` file is also used as an active-session marke
 
 **Script:** `scripts/clear-blink.sh` (same script reused)
 
+```bash
+[ -n "${TMUX_PANE:-}" ] \
+  && WIN=$(tmux display-message -t "${TMUX_PANE}" -p '#{window_index}' 2>/dev/null) \
+  && [ -n "$WIN" ] \
+  && tmux set-window-option -t :"$WIN" @tab_claude_needs_input '' \
+  && tmux set-window-option -t :"$WIN" @tab_claude_blink '' \
+  && tmux refresh-client -S \
+  || true
+```
+
 ---
 
 ### `Stop`
@@ -120,6 +130,8 @@ A `/tmp/claude-active-${TMUX_PANE}` file is also used as an active-session marke
 **What it does:**
 1. Removes `/tmp/claude-active-${TMUX_PANE}`
 2. Sets `@tab_claude_needs_input` to `1` and triggers `tab-blink-start` — signals "session ended, check this tab"
+
+> **Note:** Stop sets `@tab_claude_needs_input` only. `@tab_claude_blink` is NOT set directly by this script. The visual blink is driven entirely by the external `tmux-powerline.sh tab-blink-start` call. If you are building a status bar using `#{@tab_claude_blink}`, that option will remain empty after Stop fires; rely on `#{@tab_claude_needs_input}` to detect session end.
 
 **Script:** `scripts/stop.sh`
 
