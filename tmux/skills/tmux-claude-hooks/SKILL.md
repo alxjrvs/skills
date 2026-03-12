@@ -66,6 +66,8 @@ A `/tmp/claude-active-${TMUX_PANE}` file is also used as an active-session marke
 
 ### `Notification` (matcher: `elicitation_dialog`)
 
+The `matcher` field in `hooks.json` filters which notification types trigger this hook — only `elicitation_dialog` events fire it.
+
 **Trigger:** Claude raises an elicitation dialog — a structured prompt asking for user input mid-task.
 
 **What it does:** Sets `@tab_claude_needs_input` and starts a blink. Does **not** touch the active file.
@@ -110,16 +112,6 @@ A `/tmp/claude-active-${TMUX_PANE}` file is also used as an active-session marke
 **What it does:** Same as `UserPromptSubmit` — clears blink flags and refreshes status. This ensures the tab stops blinking once Claude resumes work after a permission grant.
 
 **Script:** `scripts/clear-blink.sh` (same script reused)
-
-```bash
-[ -n "${TMUX_PANE:-}" ] \
-  && WIN=$(tmux display-message -t "${TMUX_PANE}" -p '#{window_index}' 2>/dev/null) \
-  && [ -n "$WIN" ] \
-  && tmux set-window-option -t :"$WIN" @tab_claude_needs_input '' \
-  && tmux set-window-option -t :"$WIN" @tab_claude_blink '' \
-  && tmux refresh-client -S \
-  || true
-```
 
 ---
 
