@@ -4,12 +4,12 @@
     "name": "alxjrvs"
   },
   "metadata": {
-    "description": "alxjrvs personal Claude Code plugin marketplace"
+    "description": "No, not *that* Jarvis."
   },
   "plugins": [
     {
-      "name": "claude-tmux",
-      "source": "./claude-tmux",
+      "name": "tmux",
+      "source": "./tmux",
       "description": "Tmux integration for Claude Code — tab status, blinking, and hooks"
     }
   ]
