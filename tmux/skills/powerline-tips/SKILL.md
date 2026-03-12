@@ -75,9 +75,12 @@ Plan the visual layout right-to-left (TIME → BAT → MEM → CPU from right ed
 then write the code left-to-right in that order.
 
 ```
-Visual (screen):  [CPU][MEM][BAT][TIME]  ← right edge of bar
-Code order:        CPU  MEM  BAT  TIME   (appended first → last)
+Visual (screen, right edge →): [CPU][MEM][BAT][TIME]
+Code order (appended first→):   CPU   MEM   BAT   TIME
+                                                    ↑ last appended = rightmost on screen
 ```
+
+TIME is appended last in code and appears at the right edge of the bar.
 
 ---
 
@@ -91,6 +94,8 @@ status bar render — only the hook or `tab-colors` command updates the values.
 # Set in tab-colors script or hook
 tmux set-window-option -t :$WIN @tab_dk_color "#9a5818"
 ```
+
+> Store raw `#rrggbb` in window options — tmux does not double-expand option values on injection, so a single `#` in the stored string is correct.
 
 ```
 # Read in window-status-current-format
