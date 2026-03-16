@@ -28,7 +28,7 @@ Provide specific, actionable feedback. Flag anything that would block or complic
 
 ## Story Breakdown (G3)
 
-During story breakdown, you help the merge maintainers:
+During story breakdown, you help the maintainers:
 - **Size stories** — each should touch no more than 3-5 files (excluding tests), completable in a single session
 - **Tag complexity** — simple (haiku), moderate (sonnet), complex (opus)
 - **Write context briefs as files** — for each story, write a brief to `SCRAM_WORKSPACE/briefs/<story-slug>.md` containing:

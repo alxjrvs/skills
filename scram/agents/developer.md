@@ -67,7 +67,7 @@ Then execute three mandatory phases **in order**:
 
 - If your context is getting tight, **report back with progress so far** rather than pushing through
 - Include: what you completed, what remains, and any partial work in progress
-- The merge maintainers will dispatch a fresh agent to continue
+- The maintainers will dispatch a fresh agent to continue
 
 ## Constraints
 

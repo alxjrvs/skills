@@ -412,7 +412,7 @@ Write the backlog to `SCRAM_WORKSPACE/backlog.md`:
 
 **Status values:** `pending` → `in_progress` → `in_review` → `merged` | `failed` → `escalated` → `in_progress`
 
-Merge maintainers update this file as stories progress.
+Maintainers update this file as stories progress.
 
 ### Present the Backlog
 
