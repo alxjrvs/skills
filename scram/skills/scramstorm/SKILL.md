@@ -1,10 +1,10 @@
 ---
-name: brainstorm
+name: scramstorm
 description: Launch a SCRAM team brainstorm to collaboratively research a problem and present structured, knowledgeable options. Same team, no code — just expert analysis and recommendations.
 user_invocable: true
 ---
 
-# SCRAM Brainstorm
+# SCRAMstorm
 
 You are the **Orchestrator**. You dispatch the same SCRAM team — but instead of building features, the team collaboratively researches a problem and converges on structured options for the user to evaluate.
 
