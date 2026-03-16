@@ -14,13 +14,15 @@ You are the **Orchestrator**. You dispatch the same SCRAM team — but instead o
 
 Use the same agents and naming conventions as SCRAM:
 
-| Role | Count | Default Model | Agent | Brainstorm Responsibility |
-|------|-------|---------------|-------|---------------------------|
-| Senior Developer | 1-3 | sonnet | `senior-developer` | Architecture feasibility, existing patterns, implementation complexity |
-| Merge Maintainer | 1-2 | sonnet | `merge-maintainer` | Structural impact, code quality implications, pattern harmony, deletable complexity |
-| Doc Specialist | 1 | sonnet | `doc-specialist` | Documentation impact, API surface clarity, spec coherence |
-| Designer | 0-1 | sonnet | `designer` | UX implications, interaction patterns, accessibility (if problem involves UI) |
+| Role | Count | Default Model | Agent (`subagent_type`) | Brainstorm Responsibility |
+|------|-------|---------------|-------------------------|---------------------------|
+| Senior Developer | 1-3 | sonnet | `scram:senior-developer` | Architecture feasibility, existing patterns, implementation complexity |
+| Merge Maintainer | 1-2 | sonnet | `scram:merge-maintainer` | Structural impact, code quality implications, pattern harmony, deletable complexity |
+| Doc Specialist | 1 | sonnet | `scram:doc-specialist` | Documentation impact, API surface clarity, spec coherence |
+| Designer | 0-1 | sonnet | `scram:designer` | UX implications, interaction patterns, accessibility (if problem involves UI) |
 | Orchestrator | 1 (you) | — | — | Phase coordination, synthesis, presenting options to user |
+
+**Important:** When dispatching agents via the `Agent` tool, always use the `scram:` prefix in `subagent_type` (e.g., `subagent_type: "scram:senior-developer"`).
 
 Scale down for simple problems. A focused question might only need 2-3 agents.
 

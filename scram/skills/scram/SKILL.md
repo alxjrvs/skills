@@ -12,14 +12,16 @@ SCRAM uses **5 sequential gates** (plus an optional retrospective) and **3 concu
 
 ## Team Composition (scale to task size)
 
-| Role | Count | Default Model | Flex To | Agent | Responsibility |
-|------|-------|---------------|---------|-------|----------------|
-| Senior Developer | 1-5 | sonnet | opus | `senior-developer` | Doc review, story breakdown, context briefs, complex TDD implementation, escalation target |
-| Developer | 1-5 | sonnet | opus | `developer` | TDD implementation in isolated worktrees |
-| Merge Maintainer | 2 | sonnet | (fixed) | `merge-maintainer` | Integration branch, doc/code review, merging, stream coordination |
-| Doc Specialist | 1-3 | sonnet | (fixed) | `doc-specialist` | Docs-as-spec, incremental refinement |
-| Designer | 0-1 | sonnet | opus | `designer` | Design ADRs, required UI/UX merge approver (optional role) |
+| Role | Count | Default Model | Flex To | Agent (`subagent_type`) | Responsibility |
+|------|-------|---------------|---------|-------------------------|----------------|
+| Senior Developer | 1-5 | sonnet | opus | `scram:senior-developer` | Doc review, story breakdown, context briefs, complex TDD implementation, escalation target |
+| Developer | 1-5 | sonnet | opus | `scram:developer` | TDD implementation in isolated worktrees |
+| Merge Maintainer | 2 | sonnet | (fixed) | `scram:merge-maintainer` | Integration branch, doc/code review, merging, stream coordination |
+| Doc Specialist | 1-3 | sonnet | (fixed) | `scram:doc-specialist` | Docs-as-spec, incremental refinement |
+| Designer | 0-1 | sonnet | opus | `scram:designer` | Design ADRs, required UI/UX merge approver (optional role) |
 | Orchestrator | 1 (you) | — | — | — | Gate coordination, agent dispatch on behalf of merge maintainers, reporting to user |
+
+**Important:** When dispatching agents via the `Agent` tool, always use the `scram:` prefix in `subagent_type` (e.g., `subagent_type: "scram:developer"`). This ensures the correct plugin agent definitions are used.
 
 Scale the team to the work. Not every role needs to be filled for small tasks.
 
