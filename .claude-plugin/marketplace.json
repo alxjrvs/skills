@@ -13,9 +13,9 @@
       "description": "Tmux integration for Claude Code — tab status, blinking, and hooks"
     },
     {
-      "name": "dev-team",
-      "source": "./dev-team",
-      "description": "SCRAM — Structured team development with senior devs, merge masters, doc specialists, and an orchestrator"
+      "name": "scram",
+      "source": "./scram",
+      "description": "SCRAM — Structured Collaborative Review and Merge with stream-based parallel development"
     }
   ]
 }

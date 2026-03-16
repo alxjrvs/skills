@@ -1,0 +1,5 @@
+{
+  "name": "scram",
+  "version": "2.0.0",
+  "description": "SCRAM — Structured Collaborative Review and Merge with stream-based parallel development"
+}
