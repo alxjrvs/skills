@@ -7,9 +7,9 @@
  ╚════╝ ╚═╝  ╚═╝  ╚═══╝  ╚══════╝    ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚══════╝
 ```
 
-*No, not that Jarvis.*
+<p align="center"><em>No, not that Jarvis.</em></p>
 
-[Randsum.dev](https://randsum.dev) | [SalvageUnion.io](https://salvageunion.io)
+<p align="center"><a href="https://randsum.dev">Randsum.dev</a> | <a href="https://salvageunion.io">SalvageUnion.io</a></p>
 
 ---
 
@@ -36,4 +36,4 @@ Personal Claude Code plugin marketplace.
 
 ---
 
-![No, not that Jarvis](https://media.giphy.com/media/xTiN0uevJeTKxWbW3S/giphy.gif)
+<p align="center"><img src="https://media.giphy.com/media/xTiN0uevJeTKxWbW3S/giphy.gif" alt="No, not that Jarvis"></p>
