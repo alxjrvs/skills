@@ -299,6 +299,28 @@ If the user opted in to issue tracking during Frame, create an issue with the fi
 
 After presenting, report the workspace path so the user can review the full debate artifacts if they want deeper context.
 
+### Retrospective (optional)
+
+After presenting results, ask the user:
+
+> "Would you like a quick retro on how the brainstorm went? The team will reflect on what worked and what could improve in the scramstorm process."
+
+If yes, dispatch the **core team** (Orion, Metron, Highfather, Forager) one more time. Each reads the full workspace (problem, research, positions, debate, options) and writes **one attributed reflection** answering:
+- What worked well in this brainstorm?
+- What was missing, confusing, or wasteful in the process?
+- One specific, actionable change to the scramstorm skill
+
+The orchestrator synthesizes and presents.
+
+Then ask:
+
+> "Would you like me to open an issue on `alxjrvs/skills` with these retrospective results?"
+
+If yes, create a GitHub issue on `alxjrvs/skills` with:
+- **Title:** `retro(scramstorm): <count> suggestions from brainstorm`
+- **Labels:** `retrospective`
+- **Body:** The synthesized reflections and proposed changes — **scrubbed of all business-specific information**. No feature names, project names, file paths, code snippets, or business logic. Only generic process improvements to the scramstorm skill. This issue is public — treat it as such.
+
 ## Constraints
 
 - **No code changes** — agents read and explore the codebase but do not modify it
