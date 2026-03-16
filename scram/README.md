@@ -23,8 +23,7 @@ Launch a team brainstorm to collaboratively research a problem. Same agents, no 
 
 | Agent | Role | Default Model |
 |-------|------|---------------|
-| `scram:senior-developer` | Doc review, story breakdown, context briefs, complex implementation | sonnet |
-| `scram:developer` | TDD implementation in isolated worktrees | sonnet |
+| `scram:developer` | Doc review, story breakdown, context briefs, TDD implementation | sonnet |
 | `scram:merge-maintainer` | Line-level code review, story strictness, TDD discipline | sonnet |
 | `scram:code-maintainer` | Structural harmony, DRYness, codebase-wide patterns | sonnet |
 | `scram:doc-specialist` | Docs-as-spec, incremental refinement | sonnet |

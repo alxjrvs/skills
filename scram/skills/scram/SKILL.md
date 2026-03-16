@@ -14,8 +14,7 @@ SCRAM uses **5 sequential gates** (plus an optional retrospective) and **3 concu
 
 | Role | Count | Default Model | Flex To | Agent (`subagent_type`) | Responsibility |
 |------|-------|---------------|---------|-------------------------|----------------|
-| Senior Developer | 1-5 | sonnet | opus | `scram:senior-developer` | Doc review, story breakdown, context briefs, complex TDD implementation, escalation target |
-| Developer | 1-5 | sonnet | opus | `scram:developer` | TDD implementation in isolated worktrees |
+| Developer | 1-5 | sonnet | opus | `scram:developer` | Doc review, story breakdown, context briefs, TDD implementation, escalation handling |
 | Merge Maintainer | 1 | sonnet | (fixed) | `scram:merge-maintainer` | Line-level code review, story strictness, TDD discipline, scope enforcement |
 | Code Maintainer | 1 | sonnet | (fixed) | `scram:code-maintainer` | Structural harmony, DRYness, codebase-wide patterns, architectural drift |
 | Doc Specialist | 1-3 | sonnet | (fixed) | `scram:doc-specialist` | Docs-as-spec, incremental refinement |
@@ -31,8 +30,7 @@ Scale the team to the work. Not every role needs to be filled for small tasks.
 
 Name agents after Jack Kirby New Gods characters:
 
-**Senior Devs:** Orion, Barda, Scott, Lightray, Bekka
-**Devs:** Forager, Bug, Serifan, Vykin, Fastbak
+**Devs:** Orion, Barda, Scott, Lightray, Bekka, Forager, Bug, Serifan, Vykin, Fastbak
 **Merge Maintainer:** Metron
 **Code Maintainer:** Highfather
 **Doc Specialists:** Beautiful Dreamer, Mark Moonrider, Jezebelle
@@ -82,7 +80,7 @@ Example: `~/.scram/my-app--auth-system--20260316-143022/`
 The workspace path is determined at G0 and passed to all agents as an **absolute path**. Refer to it as `SCRAM_WORKSPACE` throughout this document.
 
 - **Backlog** (`SCRAM_WORKSPACE/backlog.md`) — the single source of truth for story status. Created at G3, updated by maintainers as stories complete, fail, or escalate. Survives context limits.
-- **Context briefs** (`SCRAM_WORKSPACE/briefs/<story-slug>.md`) — written by senior devs at G3. Dev agents read these from disk rather than receiving them inline. Persistent across retries and escalation.
+- **Context briefs** (`SCRAM_WORKSPACE/briefs/<story-slug>.md`) — written by devs at G3. Dev agents read these from disk rather than receiving them inline. Persistent across retries and escalation.
 - **Retro** (`SCRAM_WORKSPACE/retro/`) — retrospective artifacts, created at G5 if enabled.
 - **Session manifest** (`SCRAM_WORKSPACE/session.md`) — all state needed to resume a SCRAM run in a new conversation. Updated after every gate transition and after every story merge.
 
@@ -116,8 +114,8 @@ updated: <YYYY-MM-DD HH:MM:SS>
 Example:
 | Name | Role | Agent | Model |
 |------|------|-------|-------|
-| Orion | Senior Dev | senior-developer | sonnet |
-| Barda | Senior Dev | senior-developer | sonnet |
+| Orion | Dev | developer | sonnet |
+| Barda | Dev | developer | sonnet |
 | Forager | Dev | developer | sonnet |
 | Bug | Dev | developer | sonnet |
 | Metron | Merge Maintainer | merge-maintainer | sonnet |
@@ -257,8 +255,8 @@ Present the team to the user before proceeding:
 
 ```
 Team:
-  Orion (Senior Dev, sonnet)
-  Barda (Senior Dev, sonnet)
+  Orion (Dev, sonnet)
+  Barda (Dev, sonnet)
   Forager (Dev, sonnet)
   Bug (Dev, sonnet)
   Metron (Merge Maintainer, sonnet)
@@ -283,7 +281,7 @@ Each ADR follows: Context, Decision, Consequences, Status.
 
 ### G1 Review
 
-**Code maintainer (Highfather)** leads ADR review with one senior dev — they own architectural decisions:
+**Code maintainer (Highfather)** leads ADR review with one dev — they own architectural decisions:
 - Are decisions well-reasoned with clear trade-offs?
 - Are they feasible to implement?
 - Do they fit existing project patterns and long-term codebase direction?
@@ -305,7 +303,7 @@ Dispatch doc specialists with `isolation: "worktree"`:
 
 ### G2 Review
 
-Both maintainers + one senior dev review the docs, each through their own lens:
+Both maintainers + one dev review the docs, each through their own lens:
 
 **Code maintainer (Highfather)** reviews for architectural coherence:
 - **Consistency** — does it fit with existing project conventions and docs?
@@ -323,7 +321,7 @@ If issues found, doc specialists revise and re-submit. Once approved, maintainer
 
 ## G3: Story Breakdown
 
-With approved ADRs and docs as source of truth, maintainers and senior devs break down implementation.
+With approved ADRs and docs as source of truth, maintainers and devs break down implementation.
 
 ### Derive Stories
 
@@ -345,7 +343,7 @@ Each story gets a complexity tag that determines the agent model:
 |-----------|-------|------|
 | Simple | sonnet | Clear pattern, few files, context brief covers everything |
 | Moderate | sonnet | Some judgment needed, moderate file scope |
-| Complex | opus (senior dev) | Cross-cutting, architectural judgment, ambiguous requirements |
+| Complex | opus | Cross-cutting, architectural judgment, ambiguous requirements |
 
 ### Tag UI/UX Stories (when designer is active)
 
@@ -353,7 +351,7 @@ If a designer is on the team, flag any story that touches user-facing elements (
 
 ### Write Context Briefs (as files)
 
-Senior devs write a context brief **file** for each story at `SCRAM_WORKSPACE/briefs/<story-slug>.md`:
+Devs write a context brief **file** for each story at `SCRAM_WORKSPACE/briefs/<story-slug>.md`:
 
 ```markdown
 # <Story Title>
