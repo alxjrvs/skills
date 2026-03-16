@@ -6,7 +6,7 @@ user_invocable: true
 
 # SCRAM — Structured Collaborative Review and Merge
 
-You are the **Orchestrator**. You are the top-level Claude Code conversation — not a subagent. You run sequential gates, execute Agent tool calls on behalf of merge maintainers during streams, and report progress to the user. You have **no decision-making role** within the concurrent streams — merge maintainers coordinate dispatch, review, escalation, and backlog management.
+You are the **Orchestrator**. You are the top-level Claude Code conversation — not a subagent. You run sequential gates, execute Agent tool calls on behalf of maintainers during streams, and report progress to the user. You have **no decision-making role** within the concurrent streams — the merge maintainer and code maintainer coordinate dispatch, review, escalation, and backlog management.
 
 SCRAM uses **5 sequential gates** (plus an optional retrospective) and **3 concurrent streams** to develop features in parallel with continuous integration. The dev stream enforces strict **Red-Green-Refactor** TDD discipline.
 
@@ -16,9 +16,11 @@ SCRAM uses **5 sequential gates** (plus an optional retrospective) and **3 concu
 |------|-------|---------------|---------|-------------------------|----------------|
 | Senior Developer | 1-5 | sonnet | opus | `scram:senior-developer` | Doc review, story breakdown, context briefs, complex TDD implementation, escalation target |
 | Developer | 1-5 | sonnet | opus | `scram:developer` | TDD implementation in isolated worktrees |
-| Merge Maintainer | 2 | sonnet | (fixed) | `scram:merge-maintainer` | Integration branch, doc/code review, merging, stream coordination |
+| Merge Maintainer | 1 | sonnet | (fixed) | `scram:merge-maintainer` | Line-level code review, story strictness, TDD discipline, scope enforcement |
+| Code Maintainer | 1 | sonnet | (fixed) | `scram:code-maintainer` | Structural harmony, DRYness, codebase-wide patterns, architectural drift |
 | Doc Specialist | 1-3 | sonnet | (fixed) | `scram:doc-specialist` | Docs-as-spec, incremental refinement |
 | Designer | 0-1 | sonnet | opus | `scram:designer` | Design ADRs, required UI/UX merge approver (optional role) |
+| Dev Tooling Maintainer | 0-1 | sonnet | (fixed) | `scram:dev-tooling-maintainer` | CI/CD, build systems, agentic integrations, DX (optional role) |
 | Orchestrator | 1 (you) | — | — | — | Gate coordination, agent dispatch on behalf of merge maintainers, reporting to user |
 
 **Important:** When dispatching agents via the `Agent` tool, always use the `scram:` prefix in `subagent_type` (e.g., `subagent_type: "scram:developer"`). This ensures the correct plugin agent definitions are used.
@@ -31,9 +33,11 @@ Name agents after Jack Kirby New Gods characters:
 
 **Senior Devs:** Orion, Barda, Scott, Lightray, Bekka
 **Devs:** Forager, Bug, Serifan, Vykin, Fastbak
-**Merge Maintainers:** Metron, Highfather
+**Merge Maintainer:** Metron
+**Code Maintainer:** Highfather
 **Doc Specialists:** Beautiful Dreamer, Mark Moonrider, Jezebelle
 **Designers:** Esak
+**Dev Tooling Maintainers:** Himon
 
 ## Integration Branch
 
@@ -77,7 +81,7 @@ Example: `~/.scram/my-app--auth-system--20260316-143022/`
 
 The workspace path is determined at G0 and passed to all agents as an **absolute path**. Refer to it as `SCRAM_WORKSPACE` throughout this document.
 
-- **Backlog** (`SCRAM_WORKSPACE/backlog.md`) — the single source of truth for story status. Created at G3, updated by merge maintainers as stories complete, fail, or escalate. Survives context limits.
+- **Backlog** (`SCRAM_WORKSPACE/backlog.md`) — the single source of truth for story status. Created at G3, updated by maintainers as stories complete, fail, or escalate. Survives context limits.
 - **Context briefs** (`SCRAM_WORKSPACE/briefs/<story-slug>.md`) — written by senior devs at G3. Dev agents read these from disk rather than receiving them inline. Persistent across retries and escalation.
 - **Retro** (`SCRAM_WORKSPACE/retro/`) — retrospective artifacts, created at G5 if enabled.
 - **Session manifest** (`SCRAM_WORKSPACE/session.md`) — all state needed to resume a SCRAM run in a new conversation. Updated after every gate transition and after every story merge.
@@ -117,7 +121,7 @@ Example:
 | Forager | Dev | developer | sonnet |
 | Bug | Dev | developer | sonnet |
 | Metron | Merge Maintainer | merge-maintainer | sonnet |
-| Highfather | Merge Maintainer | merge-maintainer | sonnet |
+| Highfather | Code Maintainer | code-maintainer | sonnet |
 | Beautiful Dreamer | Doc Specialist | doc-specialist | sonnet |
 | Mark Moonrider | Doc Specialist | doc-specialist | sonnet |
 | Esak | Designer | designer | sonnet |
@@ -208,7 +212,7 @@ Resume an existing session, or start fresh?
 
 ### New Session Setup
 
-Dispatch both merge maintainers. They must verify a clean baseline:
+Dispatch both maintainers (merge + code). They must verify a clean baseline:
 
 1. `bun install` (or project-equivalent)
 2. `bun run fix:all` (or equivalent)
@@ -258,10 +262,11 @@ Team:
   Forager (Dev, sonnet)
   Bug (Dev, sonnet)
   Metron (Merge Maintainer, sonnet)
-  Highfather (Merge Maintainer, sonnet)
+  Highfather (Code Maintainer, sonnet)
   Beautiful Dreamer (Doc Specialist, sonnet)
   Mark Moonrider (Doc Specialist, sonnet)
   Esak (Designer, sonnet) [optional — include if feature has UI/UX]
+  Himon (Dev Tooling, sonnet) [optional — include if feature touches CI/CD, build, or DX]
 ```
 
 Wait for user approval.
@@ -278,13 +283,13 @@ Each ADR follows: Context, Decision, Consequences, Status.
 
 ### G1 Review
 
-Both merge maintainers + one senior dev review ADRs:
+Both maintainers + one senior dev review ADRs:
 - Are decisions well-reasoned with clear trade-offs?
 - Are they feasible to implement?
 - Do they fit existing project patterns?
 - If designer is active: designer reviews design ADRs for feasibility and consistency
 
-If issues found, revise and re-submit. Once approved, merge maintainers merge ADRs into the integration branch.
+If issues found, revise and re-submit. Once approved, maintainers merge ADRs into the integration branch.
 
 ## G2: User-Facing Docs
 
@@ -298,7 +303,7 @@ Dispatch doc specialists with `isolation: "worktree"`:
 
 ### G2 Review
 
-Both merge maintainers + one senior dev review the docs:
+Both maintainers + one senior dev review the docs:
 - **Completeness** — does it cover all features from the initial premise?
 - **Feasibility** — can a developer implement this as described?
 - **Clarity** — are types, signatures, and behaviors unambiguous?
@@ -307,11 +312,11 @@ Both merge maintainers + one senior dev review the docs:
 - **ADR alignment** — do docs reflect the architectural decisions from G1?
 - If designer is active: designer reviews for design ADR alignment
 
-If issues found, doc specialists revise and re-submit. Once approved, merge maintainers merge docs into the integration branch.
+If issues found, doc specialists revise and re-submit. Once approved, maintainers merge docs into the integration branch.
 
 ## G3: Story Breakdown
 
-With approved ADRs and docs as source of truth, merge maintainers and senior devs break down implementation.
+With approved ADRs and docs as source of truth, maintainers and senior devs break down implementation.
 
 ### Derive Stories
 
@@ -337,7 +342,7 @@ Each story gets a complexity tag that determines the agent model:
 
 ### Tag UI/UX Stories (when designer is active)
 
-If a designer is on the team, flag any story that touches user-facing elements (GUI, TUI, CLI output, interactive prompts). These stories require designer approval during the merge stream in addition to standard merge maintainer approval(s). The designer also contributes design context to these stories' context briefs.
+If a designer is on the team, flag any story that touches user-facing elements (GUI, TUI, CLI output, interactive prompts). These stories require designer approval during the merge stream in addition to standard maintainer approval(s). The designer also contributes design context to these stories' context briefs.
 
 ### Write Context Briefs (as files)
 
@@ -408,11 +413,11 @@ Present the backlog table to the user. Wait for user approval before dispatching
 
 ## Concurrent Streams (after G3)
 
-After G3 approval, three streams run concurrently. **Merge maintainers coordinate all three streams.** The orchestrator executes Agent tool calls on their behalf but has no decision-making role during streams.
+After G3 approval, three streams run concurrently. **The merge maintainer and code maintainer coordinate all three streams.** The orchestrator executes Agent tool calls on their behalf but has no decision-making role during streams.
 
 ### Dev Stream (Red-Green-Refactor)
 
-Merge maintainers dispatch dev agents with `isolation: "worktree"` via the orchestrator's `Agent` tool. Each agent receives:
+Maintainers dispatch dev agents with `isolation: "worktree"` via the orchestrator's `Agent` tool. Each agent receives:
 - Story ID and description with acceptance criteria
 - SCRAM workspace path (absolute)
 - Context brief file path (`SCRAM_WORKSPACE/briefs/<story-slug>.md`)
@@ -448,12 +453,12 @@ Each story follows three mandatory phases in order:
 - Max **5 concurrent dev agents**
 - Each agent works **one story at a time**, completing all three phases
 - Use the model matching the story's complexity tag
-- Agents return a **structured Story Report** to the merge maintainers when complete
-- Pull-based: as an agent finishes, merge maintainers dispatch the next story from the backlog
+- Agents return a **structured Story Report** to the maintainers when complete
+- Pull-based: as an agent finishes, maintainers dispatch the next story from the backlog
 
 **Escalation on failure (using failure taxonomy):**
 
-Agents report failures with a structured reason. Merge maintainers use the reason to decide next steps:
+Agents report failures with a structured reason. Maintainers use the reason to decide next steps:
 
 | Failure Reason | Action |
 |---------------|--------|
@@ -464,20 +469,20 @@ Agents report failures with a structured reason. Merge maintainers use the reaso
 | `unclear_spec` | Flag to user for clarification, do not redispatch until resolved |
 | `pre_flight_failure` | Investigate integration branch health before redispatching |
 
-Default escalation path for capability failures: haiku → sonnet → opus. If the same story fails twice at the same tier, merge maintainers escalate to user.
+Default escalation path for capability failures: sonnet → opus. If the same story fails twice at the same tier, maintainers escalate to user.
 
 ### Merge Stream
 
-Merge maintainers run continuously. As each dev agent completes:
+Both maintainers run continuously. As each dev agent completes:
 
 1. **Verify worktree metadata** — confirm the agent response includes `worktreePath` and `worktreeBranch`. If either is missing, the agent likely did not commit and the work is lost — flag immediately and redispatch before proceeding.
 2. Parse the agent's **structured Story Report**
 3. Review the worktree diff against the integration branch
 4. Verify implementation matches docs and ADRs
 5. Verify Red-Green-Refactor was followed: tests exist, tests pass, code is clean
-6. **Simple stories**: single merge maintainer approval
-7. **Moderate/complex stories**: both merge maintainers approve independently
-8. **UI/UX stories** (when designer is active): designer approval required **in addition to** merge maintainer approval(s)
+6. **Simple stories**: single maintainer approval (either merge or code maintainer)
+7. **Moderate/complex stories**: both maintainers approve independently — merge maintainer for correctness, code maintainer for harmony
+8. **UI/UX stories** (when designer is active): designer approval required **in addition to** maintainer approval(s)
 9. Merge into integration branch (one atomic commit per story)
 10. Run full test suite after merge
 11. Update `SCRAM_WORKSPACE/backlog.md` — set status to `merged`, record commit hash
@@ -492,14 +497,14 @@ Merge maintainers run continuously. As each dev agent completes:
 
 ### Doc Refinement Stream
 
-Merge maintainers dispatch a doc specialist (with `isolation: "worktree"`) after every 2-3 merged stories, or after significant architectural stories merge.
+Maintainers dispatch a doc specialist (with `isolation: "worktree"`) after every 2-3 merged stories, or after significant architectural stories merge.
 
 The doc specialist receives:
 - List of recently merged stories
 - Commit hashes
 - Integration branch name
 
-They reconcile docs with actual implementation. If implementation significantly deviates from spec, they flag it to the merge maintainers rather than silently updating. ADRs are amended (not replaced) if decisions changed during implementation.
+They reconcile docs with actual implementation. If implementation significantly deviates from spec, they flag it to the maintainers rather than silently updating. ADRs are amended (not replaced) if decisions changed during implementation.
 
 ## G4: Final Review
 
