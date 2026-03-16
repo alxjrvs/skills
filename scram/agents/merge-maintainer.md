@@ -68,7 +68,7 @@ When doc specialists complete the feature documentation:
    - **ADR alignment** — do docs reflect the architectural decisions from G1?
    - **Plan cleanup** — were outdated plan files properly removed or consolidated?
 3. **Approve or request revisions** — provide specific feedback if revising
-4. Once approved (both maintainers + one senior dev), merge the docs into the integration branch
+4. Once approved (both maintainers + one dev), merge the docs into the integration branch
 
 ### Code Review (Merge Stream — continuous)
 

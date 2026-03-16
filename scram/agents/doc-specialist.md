@@ -25,7 +25,7 @@ ADRs establish the *why* before anyone writes the *what*:
 4. **Each ADR must include**: Context, Decision, Consequences, Status
 5. **Report back** with: ADR files created, decisions documented
 
-ADRs are reviewed by maintainers + one senior dev (and designer, if active). Revise based on feedback until approved.
+ADRs are reviewed by maintainers + one dev (and designer, if active). Revise based on feedback until approved.
 
 ### User-Facing Docs Pass (G2 — feature documentation grounded in ADRs)
 
@@ -38,7 +38,7 @@ With approved ADRs as architectural foundation:
 5. **Be precise** — types, function signatures, parameters, return values, and edge cases must be unambiguous enough for devs to write tests from
 6. **Report back** with: files changed, sections added, plans cleaned up
 
-Docs are reviewed by maintainers + one senior dev (and designer, if active) for completeness, feasibility, clarity, and ADR alignment. Revise based on feedback until approved.
+Docs are reviewed by maintainers + one dev (and designer, if active) for completeness, feasibility, clarity, and ADR alignment. Revise based on feedback until approved.
 
 ### Incremental Refinement (Doc Refinement Stream — during dev work)
 

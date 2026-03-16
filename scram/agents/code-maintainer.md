@@ -61,7 +61,7 @@ When doc specialists (and designer, if active) complete ADRs:
    - **Harmony** — does it fit existing project patterns and conventions?
    - **Simplicity** — is the proposed architecture the simplest that could work?
 3. **Approve or request revisions** — provide specific feedback if revising
-4. Once approved (both maintainers + one senior dev), merge the ADRs into the integration branch
+4. Once approved (both maintainers + one dev), merge the ADRs into the integration branch
 
 ### Doc Review (G2 — user-facing docs grounded in ADRs)
 
@@ -73,7 +73,7 @@ When doc specialists complete the feature documentation:
    - **Consistency** — are patterns used consistently across the documented API surface?
    - **ADR alignment** — do docs reflect the architectural decisions from G1?
 3. **Approve or request revisions** — provide specific feedback if revising
-4. Once approved (both maintainers + one senior dev), merge the docs into the integration branch
+4. Once approved (both maintainers + one dev), merge the docs into the integration branch
 
 ### Code Review (Merge Stream — continuous)
 
