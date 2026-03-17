@@ -34,7 +34,7 @@ Every scramstorm uses a core team of four agents, plus optional specialists. Eac
 
 **Important:** When dispatching agents via the `Agent` tool, always use the `scram:` prefix in `subagent_type` (e.g., `subagent_type: "scram:developer"`).
 
-**Personality in practice:** Each agent's personality should visibly influence their research focus, position papers, and debate arguments. Orion's positions should be blunt and action-oriented. Metron's should be analytical and pattern-seeking. Highfather's should be systemic and long-term. Forager's should be grounded and practical. When present: Beautiful Dreamer's should be empathetic and user-centered, Scott Free's should be inventive and constraint-breaking, Himon's should be tooling-focused and automation-minded. The personality is not a costume — it's a lens that produces genuinely different analysis.
+**Personality in practice:** Each agent's personality should visibly influence their research focus, tickets, and debate arguments. Orion's positions should be blunt and action-oriented. Metron's should be analytical and pattern-seeking. Highfather's should be systemic and long-term. Forager's should be grounded and practical. When present: Beautiful Dreamer's should be empathetic and user-centered, Scott Free's should be inventive and constraint-breaking, Himon's should be tooling-focused and automation-minded. The personality is not a costume — it's a lens that produces genuinely different analysis.
 
 ## Brainstorm Workspace
 
@@ -45,24 +45,24 @@ Brainstorm artifacts live in a global workspace, same pattern as SCRAM:
 ├── problem.md              # framed problem statement
 ├── research/
 │   └── <agent-name>.md     # per-agent research findings
-├── positions/
-│   └── NNN.md              # anonymous position papers
-├── debate/
-│   ├── round-1.md          # reactions and challenges
-│   └── round-2.md          # convergence
+├── tickets/
+│   └── NNN.md              # anonymous tickets
+├── votes.md                # vote tallies
+├── discussion/
+│   └── <ticket-slug>.md    # discussion output per winning ticket
 └── options.md              # final synthesized options
 ```
 
 Create the workspace at the start:
 ```bash
 BRAINSTORM_WORKSPACE=~/.scram/brainstorm--$(basename "$PWD")--<topic-slug>--$(date +%Y%m%d-%H%M%S)
-mkdir -p "$BRAINSTORM_WORKSPACE"/{research,positions,debate}
+mkdir -p "$BRAINSTORM_WORKSPACE"/{research,tickets,discussion}
 ```
 
 ## Flow Overview
 
 ```
-Frame ──► Research (parallel) ──► Position (anonymous) ──► Debate (2 rounds) ──► Present
+Frame ──► Research (parallel) ──► Ticket (anonymous) ──► Vote ──► Discuss (winners) ──► Present
 ```
 
 All phases are sequential. Research is the only parallelized phase.
@@ -182,24 +182,24 @@ Research format:
 - <things they couldn't resolve that need team discussion>
 ```
 
-## Phase 3: Position (anonymous)
+## Phase 3: Tickets (anonymous)
 
 After all research is complete, dispatch **every agent again**. Each agent reads:
 - The framed problem
 - **All** research findings (not just their own)
 
-Each agent writes **one anonymous position paper** to `BRAINSTORM_WORKSPACE/positions/NNN.md`. Position papers are **anonymous** — no agent name, no role. The orchestrator assigns sequential numbers.
+Each agent writes **one or more anonymous tickets** to `BRAINSTORM_WORKSPACE/tickets/NNN.md`. Tickets are **anonymous** — no agent name, no role. The orchestrator assigns sequential numbers to prevent collisions. Each ticket proposes one distinct approach, observation, or recommendation.
 
-Position format:
+Ticket format:
 
 ```markdown
-# <approach title>
+# <short title>
 
 ## Summary
-<1-2 sentence description of the proposed approach>
+<1-2 sentence description of the proposed approach or observation>
 
 ## How It Works
-<detailed explanation of the approach — what changes, what stays the same, how the pieces fit>
+<detailed explanation — what changes, what stays the same, how the pieces fit>
 
 ## Key Assumptions (that could be wrong)
 - <load-bearing assumption 1>
@@ -209,50 +209,52 @@ Position format:
 - **Pros:** <list>
 - **Cons:** <list>
 
-## Risks
-- <what could go wrong>
-
 ## Effort Estimate
 low | moderate | high | very_high
-
-## Builds On
-<which research findings (by role, not name) support this approach>
 ```
 
-Agents may propose the same approach as another agent — that's signal, not redundancy. Different framings of the same idea add nuance.
+Agents may submit tickets proposing the same approach — convergence is signal. Different framings add nuance.
 
-**State contract requirement:** If the brainstorm touches async state machines, queues, or event-driven systems, each position must declare what state each entity is in after the proposed change runs under the named failure scenario. This surfaces incompatible state assumptions before debate.
+**State contract requirement:** If the brainstorm touches async state machines, queues, or event-driven systems, each ticket must declare what state each entity is in after the proposed change runs under the named failure scenario.
 
-## Phase 4: Debate (2 rounds)
+## Phase 4: Vote
 
-### Round 1: React and Challenge
+Dispatch **every agent again**. Each reads all tickets in `BRAINSTORM_WORKSPACE/tickets/` and votes for the ones most relevant to the problem. Each agent gets votes equal to **half the ticket count, rounded up** (e.g., 10 tickets = 5 votes per agent).
 
-Dispatch **all agents**. Each reads all position papers and responds:
-- **Support** a position (with specific reasons)
-- **Challenge** a position (with specific concerns — what was missed, what won't work)
-- **Refine** a position (suggest modifications that address weaknesses)
+Each agent returns their votes as a list of ticket numbers. The orchestrator tallies votes and writes the results to `BRAINSTORM_WORKSPACE/votes.md`:
 
-Each agent's Round 1 response is **attributed** (not anonymous) — team members should know who is challenging what so they can respond. Responses are collected into `BRAINSTORM_WORKSPACE/debate/round-1.md`.
+```markdown
+# Votes
 
-### Between Rounds: Orchestrator Synthesis
+| Ticket | Title | Votes |
+|--------|-------|-------|
+| 003 | <title> | 7 |
+| 001 | <title> | 5 |
+| 005 | <title> | 3 |
+| ... | ... | ... |
+```
 
-Before dispatching Round 2, the orchestrator performs two steps:
+## Phase 5: Discuss (winning tickets)
 
-1. **Resolved list** — summarize questions already answered in Round 1 and mark them closed. Distribute to all agents with Round 2 dispatch. This prevents re-litigating settled questions.
-2. **Steward synthesis** — Highfather (or the steward role) writes a short (5-10 line) note naming the cross-cutting dependencies and open decisions surfaced in Round 1. This is distributed to all agents as shared premises for Round 2.
+Take the **top 3 voted tickets** (or fewer if the vote is sparse). Low-scoring tickets are ignored unless an agent flags one as critical (in which case, include it).
 
-### Round 2: Converge
+For each winning ticket, dispatch **all agents** for an open, **attributed** debate. Each agent:
+- **Supports**, **challenges**, or **refines** the ticket — with specific reasons grounded in their research
+- States whether the approach can ship independently or requires another change to land first (**dependency check**)
+- Proposes concrete modifications if they see improvements
 
-Dispatch **all agents** with Round 1 responses, the resolved list, and the steward synthesis. Each agent:
-- Reads all challenges, refinements, and the resolved/synthesis notes
-- Updates their support — they may switch positions based on new arguments
-- **Dependency check** — explicitly state whether their position can ship independently or requires another fix to land first, and why
-- Identifies where consensus is forming vs. where genuine disagreement remains
-- If they see a synthesis that combines the best of multiple positions, they propose it
+Responses are collected into `BRAINSTORM_WORKSPACE/discussion/<ticket-slug>.md`.
 
-Responses are collected into `BRAINSTORM_WORKSPACE/debate/round-2.md`.
+### Steward Synthesis
 
-## Phase 5: Present
+After discussion, the orchestrator asks Highfather (the steward) to write a short (5-10 line) synthesis naming:
+- Where consensus formed
+- Where genuine disagreement remains
+- Cross-cutting dependencies between winning tickets
+
+This synthesis is included in the final presentation.
+
+## Phase 6: Present
 
 The orchestrator synthesizes the debate into structured options. Write to `BRAINSTORM_WORKSPACE/options.md` and present to the user.
 
@@ -394,5 +396,5 @@ If yes, create a GitHub issue on `alxjrvs/skills` with:
 - **No code changes** — agents read and explore the codebase but do not modify it
 - **No git operations** — no branches, commits, or worktrees
 - Agents should ground their analysis in the actual codebase, not abstract theorizing
-- Anonymous positions prevent authority bias; attributed debate enables constructive challenge
+- Anonymous tickets prevent authority bias during voting; attributed discussion enables constructive challenge
 - Always include core team: Orion, Metron, Highfather, Forager. Add optional specialists (Beautiful Dreamer, Scott Free, Himon) when the problem touches their domain.
