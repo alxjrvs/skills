@@ -236,7 +236,7 @@ Each agent returns their votes as a list of ticket numbers. The orchestrator tal
 
 ## Phase 5: Discuss (winning tickets)
 
-Take the **top 3 voted tickets** (or fewer if the vote is sparse). Low-scoring tickets are ignored unless an agent flags one as critical (in which case, include it).
+Discuss tickets that received a **majority of votes** (>50% of participating agents voted for them). Low-scoring tickets are ignored unless an agent flags one as critical (in which case, include it).
 
 For each winning ticket, dispatch **all agents** for an open, **attributed** debate. Each agent:
 - **Supports**, **challenges**, or **refines** the ticket — with specific reasons grounded in their research
