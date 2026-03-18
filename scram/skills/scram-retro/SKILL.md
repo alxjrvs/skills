@@ -22,6 +22,24 @@ Read these files to form the seed material for ticket writing:
 2. `SCRAM_WORKSPACE/backlog.md` — story flow, escalations, failures
 3. `SCRAM_WORKSPACE/session.md` — session history, notes, HALT events
 
+## Phase 0: Prior-Retro Audit
+
+Before dispatching maintainers, run the following command to check for open retrospective issues on `alxjrvs/skills`:
+
+```bash
+gh issue list --repo alxjrvs/skills --label retrospective --state open --json number,title
+```
+
+- If `gh` is unavailable or returns an error, log a warning — `prior_retro_audit: skipped — gh CLI unavailable` — and continue without blocking.
+- If `gh` succeeds and returns 0 issues, continue to Phase 1 with no prior-retro context.
+- If `gh` succeeds and returns 1 or more issues, capture the count and titles and format them as:
+
+```
+Prior open retro issues (N): 1. <title> 2. <title> ...
+```
+
+Surface this summary to maintainers in Phase 1 as additional dispatch context (see below).
+
 ## Phase 1: Ticket Submission
 
 Dispatch both maintainers (Metron and Highfather) as **fresh one-shots**. Each receives:
@@ -29,6 +47,7 @@ Dispatch both maintainers (Metron and Highfather) as **fresh one-shots**. Each r
 - The final `SCRAM_WORKSPACE/session.md`
 - The `in-flight.md` content if it exists
 - The `session_context` summary
+- The prior-retro summary from Phase 0 (if count > 0), formatted as: `Prior open retro issues (N): 1. <title> 2. <title> ...`
 
 Each maintainer writes their attributed tickets to `SCRAM_WORKSPACE/retro/tickets/<name>.md`.
 
