@@ -59,9 +59,18 @@ process | tooling | communication | prompt_quality | missing_capability
 
 ### Proposed Text
 > <exact replacement string — required for agree/propose phase>
+
+### Structured Diff
+- **file_path:** <path to skill or agent file to change>
+- **operation:** add | modify | remove
+- **current_text:** <exact string currently in the file>
+- **proposed_text:** <exact replacement string>
+
+### Recurrence (optional)
+recurrence_of: <prior retro issue number or URL, if this issue class has appeared before>
 ```
 
-The `### Current Text` and `### Proposed Text` fields are **required**. They must contain exact string matches, not paraphrases. This enables future auto-application.
+The `### Structured Diff` block is **required**. The `file_path`, `operation`, `current_text`, and `proposed_text` fields must contain exact string matches, not paraphrases. The `### Current Text` and `### Proposed Text` fields above remain for human readability, but `### Structured Diff` is the machine-readable source of truth and must be kept consistent with them. This enables future auto-application.
 
 ## Phase 2: Discussion
 
@@ -138,7 +147,7 @@ AskUserQuestion:
 ```
 
 If yes, create a GitHub issue on `alxjrvs/skills` with:
-- **Title:** `retro: <count> consensus changes from SCRAM run`
+- **Title:** `retro(v<scram_version>): <count> consensus changes from SCRAM run` — where `v<scram_version>` is the value of `scram_version` from the session manifest (e.g. `retro(v6.1.0): 4 consensus changes from SCRAM run`)
 - **Labels:** `retrospective`
 - **Body:** The compiled retrospective output (consensus changes, partial consensus, other tickets) — **scrubbed of all business-specific information**. No feature names, project names, file paths, code snippets, or business logic. Only generic process improvements to SCRAM skill and agent definitions. This issue is public — treat it as such.
 

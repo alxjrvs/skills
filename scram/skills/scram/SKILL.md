@@ -112,6 +112,7 @@ run_type: code | docs | mixed
 retrospective: pending | true | false
 # retrospective transitions: set to "pending" at G0; resolve to "true" (opted in) or "false" (opted out) at G4 after the user prompt; never resolve during the stream phase
 prior_brainstorm: <absolute path to brainstorm workspace, or "none">
+scram_version: <semver string read from scram/.claude-plugin/plugin.json at G0, e.g. "6.1.0">
 compressed_gates: <comma-separated list of skipped gates, e.g. "G1, G2", or "none">
 tracker: <tracker config or "none">
 created: <YYYY-MM-DD HH:MM:SS>
@@ -230,6 +231,8 @@ Resume an existing session, or start fresh?
 git stash list
 ```
 If stashes exist, stop and notify the user. Do not proceed until the user explicitly clears or acknowledges existing stashes. Starting a SCRAM run with stashes present risks accidental loss during G4 teardown.
+
+Read `scram_version` from `scram/.claude-plugin/plugin.json` (the `"version"` field) and include it in the session manifest frontmatter.
 
 Both maintainers run environment checks and create the integration branch per their agent definitions. The orchestrator creates the SCRAM workspace using `scram-init.sh` and writes the session manifest.
 
