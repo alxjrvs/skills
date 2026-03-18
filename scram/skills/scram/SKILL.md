@@ -219,22 +219,7 @@ Resume an existing session, or start fresh?
 
 ### New Session Setup
 
-Dispatch both maintainers (merge + code). They must verify a clean baseline:
-
-1. `bun install` (or project-equivalent)
-2. `bun run fix:all` (or equivalent)
-3. `bun run build`
-4. `bun run test`
-5. `git status` — must be clean
-6. Create integration branch: `git checkout -b scram/<feature-name>`
-7. Create the SCRAM workspace:
-   ```bash
-   SCRAM_WORKSPACE=~/.scram/$(basename "$PWD")--<feature-name>--$(date +%Y%m%d-%H%M%S)
-   mkdir -p "$SCRAM_WORKSPACE/briefs"
-   ```
-   Record the absolute `SCRAM_WORKSPACE` path — pass it to every agent dispatched from this point forward.
-8. Write the initial session manifest to `SCRAM_WORKSPACE/session.md`
-9. Save a memory reference for this session
+Both maintainers run environment checks and create the integration branch per their agent definitions. The orchestrator creates the SCRAM workspace using `scram-init.sh` and writes the session manifest.
 
 If ANY step fails, **stop and report to the user**. Do not proceed with a broken baseline.
 
@@ -587,30 +572,7 @@ Each agent receives in its dispatch prompt:
 - **Integration branch name** — the agent MUST branch from this, not from `main`
 - The checkout instructions above
 
-Each story follows three mandatory phases in order:
-
-#### Phase 1: RED — Write Failing Tests
-
-- Derive tests directly from the documented behavior and acceptance criteria
-- Tests must compile/parse but **fail** (no implementation yet)
-- Cover the documented happy path, edge cases, and error conditions
-- Run tests to confirm they fail as expected
-- **Do not write any implementation code in this phase**
-
-#### Phase 2: GREEN — Write Minimum Code to Pass
-
-- Write the **minimum implementation** to make all RED tests pass
-- No optimization, no cleanup, no extras — just make it green
-- Run tests to confirm they all pass
-- **Do not refactor in this phase**
-
-#### Phase 3: REFACTOR — Improve Code Quality
-
-- Refactor for clarity, readability, and best practices
-- Streamline: remove duplication, simplify logic, improve naming
-- Ensure code follows project conventions (CLAUDE.md)
-- Run tests after refactoring to confirm nothing broke
-- **All tests must still pass after refactor**
+Dispatch `scram:developer-impl` with the context brief — the agent follows its TDD discipline as defined in its agent file.
 
 **Dispatch rules:**
 - **P0 stories run first as a separate wave** with a quality gate before P1+ begins. This gates complex work on a proven baseline.
@@ -754,7 +716,7 @@ The user can continue in a fresh session. The new orchestrator will find the wor
 
 ## Constraints
 
-- All dev agents dispatched with `isolation: "worktree"` — worktree isolation is non-negotiable, even for simple stories
+- `scram:developer-impl` and `scram:doc-specialist` dispatched with `isolation: "worktree"` (Tier 1 implementation) — non-negotiable even for simple stories. `scram:developer-reviewer` and `scram:developer-breakdown` are Tier 2 dispatch — no worktree isolation
 - All developers use strict TDD — tests before implementation. For content-only stories (no executable tests), use the substitute discipline: (1) establish a schema or validation contract, (2) validate content against it, (3) human-readable diff review against prior version
 - Never skip hooks or force-push
 - New commits only — never amend
