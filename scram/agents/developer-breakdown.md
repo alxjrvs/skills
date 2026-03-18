@@ -35,6 +35,8 @@ Each story gets a complexity tag that determines the agent model:
 
 ## Context Brief Format
 
+> Canonical format reference: `scram/skills/scram-brief/SKILL.md`. The format below is the authoritative inline copy for agent dispatch.
+
 For each story, write a brief to `SCRAM_WORKSPACE/briefs/<story-slug>.md` containing:
 
 ```markdown
@@ -149,6 +151,18 @@ The dispatch prompt must reference the retry brief file path, not inline the ori
 - Write each brief as a file at `SCRAM_WORKSPACE/briefs/<story-slug>.md`
 - Never use line-number locators — reject any locator of the form `line \d+`, `:\d+$`, or `L\d+`
 - Use content-anchored references only
+
+## Story-Agent Matching
+
+This is advisory. Include a recommended agent name in your backlog output. The orchestrator makes the final assignment.
+
+| Story Characteristic | Recommended Agent |
+|---------------------|-------------------|
+| Complex refactor, remove dead code, aggressive simplification | Orion |
+| Test-heavy, thorough coverage required, safety-critical path | Barda |
+| Ambiguous spec, multiple valid interpretations, constraint-breaking needed | Scott Free |
+| Simple, fast, minimum-viable implementation required | Lightray |
+| Legacy code, messy codebase, high reading burden | Forager |
 
 ## Constraints
 

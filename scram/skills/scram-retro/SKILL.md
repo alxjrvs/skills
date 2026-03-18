@@ -22,6 +22,24 @@ Read these files to form the seed material for ticket writing:
 2. `SCRAM_WORKSPACE/backlog.md` — story flow, escalations, failures
 3. `SCRAM_WORKSPACE/session.md` — session history, notes, HALT events
 
+## Phase 0: Prior-Retro Audit
+
+Before dispatching maintainers, run the following command to check for open retrospective issues on `alxjrvs/skills`:
+
+```bash
+gh issue list --repo alxjrvs/skills --label retrospective --state open --json number,title
+```
+
+- If `gh` is unavailable or returns an error, log a warning — `prior_retro_audit: skipped — gh CLI unavailable` — and continue without blocking.
+- If `gh` succeeds and returns 0 issues, continue to Phase 1 with no prior-retro context.
+- If `gh` succeeds and returns 1 or more issues, capture the count and titles and format them as:
+
+```
+Prior open retro issues (N): 1. <title> 2. <title> ...
+```
+
+Surface this summary to maintainers in Phase 1 as additional dispatch context (see below).
+
 ## Phase 1: Ticket Submission
 
 Dispatch both maintainers (Metron and Highfather) as **fresh one-shots**. Each receives:
@@ -29,6 +47,7 @@ Dispatch both maintainers (Metron and Highfather) as **fresh one-shots**. Each r
 - The final `SCRAM_WORKSPACE/session.md`
 - The `in-flight.md` content if it exists
 - The `session_context` summary
+- The prior-retro summary from Phase 0 (if count > 0), formatted as: `Prior open retro issues (N): 1. <title> 2. <title> ...`
 
 Each maintainer writes their attributed tickets to `SCRAM_WORKSPACE/retro/tickets/<name>.md`.
 
@@ -59,9 +78,18 @@ process | tooling | communication | prompt_quality | missing_capability
 
 ### Proposed Text
 > <exact replacement string — required for agree/propose phase>
+
+### Structured Diff
+- **file_path:** <path to skill or agent file to change>
+- **operation:** add | modify | remove
+- **current_text:** <exact string currently in the file>
+- **proposed_text:** <exact replacement string>
+
+### Recurrence (optional)
+recurrence_of: <prior retro issue number or URL, if this issue class has appeared before>
 ```
 
-The `### Current Text` and `### Proposed Text` fields are **required**. They must contain exact string matches, not paraphrases. This enables future auto-application.
+The `### Structured Diff` block is **required**. The `file_path`, `operation`, `current_text`, and `proposed_text` fields must contain exact string matches, not paraphrases. The `### Current Text` and `### Proposed Text` fields above remain for human readability, but `### Structured Diff` is the machine-readable source of truth and must be kept consistent with them. This enables future auto-application.
 
 ## Phase 2: Discussion
 
@@ -138,7 +166,7 @@ AskUserQuestion:
 ```
 
 If yes, create a GitHub issue on `alxjrvs/skills` with:
-- **Title:** `retro: <count> consensus changes from SCRAM run`
+- **Title:** `retro(v<scram_version>): <count> consensus changes from SCRAM run` — where `v<scram_version>` is the value of `scram_version` from the session manifest (e.g. `retro(v6.1.0): 4 consensus changes from SCRAM run`)
 - **Labels:** `retrospective`
 - **Body:** The compiled retrospective output (consensus changes, partial consensus, other tickets) — **scrubbed of all business-specific information**. No feature names, project names, file paths, code snippets, or business logic. Only generic process improvements to SCRAM skill and agent definitions. This issue is public — treat it as such.
 

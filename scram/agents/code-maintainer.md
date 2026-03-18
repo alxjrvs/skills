@@ -35,21 +35,7 @@ You receive the **SCRAM workspace path** (absolute) when dispatched. This worksp
 
 ### G0: Environment Check + Integration Branch
 
-Before any team work begins, verify a clean baseline:
-1. `bun install` (or project-equivalent dependency install)
-2. `bun run fix:all` (or equivalent)
-3. `bun run build`
-4. `bun run test`
-5. `git status` — must be clean
-
-If anything fails, **stop and report**. Do not proceed.
-
-Then create the integration branch:
-```bash
-git checkout -b scram/<feature-name>
-```
-
-This branch is created from `main` (or the current branch). All dev worktrees branch from here. All merges go into here. `main` stays clean until final review.
+> See `merge-maintainer.md § G0: Environment Check + Integration Branch` for the canonical procedure.
 
 ### ADR Review (G1 — architectural decisions first)
 
@@ -115,26 +101,15 @@ After both maintainers approve (or single for simple):
 
 ### Conflict Resolution
 
-- **Trivial conflicts** (import ordering, adjacent edits): resolve directly in the integration branch
-- **Substantive conflicts** (competing logic changes): pause the conflicting story. Merge all non-conflicting work first. Redispatch the story against the updated integration branch with a fresh context brief.
+> See `merge-maintainer.md § Conflict Resolution` for the canonical procedure.
 
 ### Tracker Updates (if configured)
 
-If the user provided an external tracker during G0:
-
-- **After each merge:** Update the corresponding issue — add a comment with the commit hash, mark as "Done" / "Merged" / equivalent status
-- **On revert:** Update the issue back to "In Progress" with details on what broke
-- **If tracker API fails:** Log what you would have updated and continue. Report missed updates to the user at the end.
-
-Use available tools (`gh` CLI, MCP tools) for tracker operations. If tools are unavailable, log the update and report missed updates to the user at the end.
+> See `merge-maintainer.md § Tracker Updates (if configured)` for the canonical procedure.
 
 ### Commit Format
 
-```
-<type>(<scope>): <description>
-
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
-```
+> See `merge-maintainer.md § Commit Format` for the canonical format.
 
 ## Report Format
 
@@ -167,9 +142,4 @@ When writing or reviewing shell scripts (in SCRAM workspace or agent outputs):
 
 ## Constraints
 
-- **NEVER** use `LEFTHOOK=0`, `--no-verify`, or `--no-gpg-sign`
-- **NEVER** amend existing commits — always create new commits
-- **NEVER** force push
-- **NEVER** merge further stories while the integration branch has failing tests
-- If hooks fail, investigate the root cause and fix it
-- If pre-existing issues block commits, report to the user
+> See `merge-maintainer.md § Constraints` for the canonical constraints list.

@@ -10,6 +10,20 @@ You are the **Orchestrator**. You are the top-level Claude Code conversation —
 
 SCRAM uses **5 sequential gates** (plus an optional retrospective) and **3 concurrent streams** to develop features in parallel with continuous integration. The dev stream enforces strict **Red-Green-Refactor** TDD discipline.
 
+```
+G0: Environment ──► G1: ADRs ──► G2: User-Facing Docs ──► G3: Story Breakdown ──►┐
+                                                                                   │
+    ┌──────────────────────────────────────────────────────────────────────────────┘
+    │
+    ├──► Dev Stream (RED → GREEN → REFACTOR) ──┐
+    ├──► Merge Stream ─────────────────────────┤──► G4: Final Review ──► [G5: Retrospective]
+    └──► Doc Refinement Stream ────────────────┘
+```
+
+Gates are sequential. Streams are concurrent. Dev work enforces Red-Green-Refactor per story. G5 is optional.
+
+---
+
 ## Team Composition (scale to task size)
 
 | Role | Count | Default Model | Flex To | Agent (`subagent_type`) | Responsibility |
@@ -59,141 +73,9 @@ scram/<feature-name>/<story-slug>       # per-agent worktree branches
 
 ## SCRAM Workspace
 
-SCRAM persists state in a **global workspace directory** outside the project repo, ensuring zero contamination of the project's git history. Workspaces are **isolated per invocation** to prevent context bleed between concurrent SCRAM runs.
+SCRAM persists state in a global workspace directory (`~/.scram/`) outside the project repo. Workspaces are isolated per invocation. The workspace path (`SCRAM_WORKSPACE`) is determined at G0 and passed to all agents as an absolute path.
 
-```
-~/.scram/
-└── <project-dir>--<feature-name>--<invocation-id>/
-    ├── session.md              # session manifest — resume state
-    ├── backlog.md              # tracked backlog with story status
-    ├── briefs/
-    │   └── <story-slug>.md     # context brief per story
-    ├── retro/                  # retrospective artifacts (G5, if enabled)
-    │   ├── in-flight.md        # appended during streams; read by retro facilitator at G5
-    │   ├── tickets/
-    │   │   ├── metron.md
-    │   │   └── highfather.md
-    │   └── discussions/
-    │       └── <topic-slug>.md # consensus discussion outputs
-    └── events/
-    │   └── stream.log          # checkpoint event log — one JSON line per Stop hook invocation
-```
-
-**Workspace path construction** (at G0):
-1. `<project-dir>` — the basename of the project's working directory (e.g., `my-app`)
-2. `<feature-name>` — the feature name from the integration branch (e.g., `auth-system`)
-3. `<invocation-id>` — a short timestamp: `YYYYMMDD-HHMMSS` (e.g., `20260316-143022`)
-
-Example: `~/.scram/my-app--auth-system--20260316-143022/`
-
-The workspace path is determined at G0 and passed to all agents as an **absolute path**. Refer to it as `SCRAM_WORKSPACE` throughout this document.
-
-- **Backlog** (`SCRAM_WORKSPACE/backlog.md`) — the single source of truth for story status. Created at G3, updated by maintainers as stories complete, fail, or escalate. Survives context limits.
-- **Context briefs** (`SCRAM_WORKSPACE/briefs/<story-slug>.md`) — written by devs at G3. Dev agents read these from disk rather than receiving them inline. Persistent across retries and escalation.
-- **Retro** (`SCRAM_WORKSPACE/retro/`) — retrospective artifacts, created at G5 if enabled.
-- **Session manifest** (`SCRAM_WORKSPACE/session.md`) — all state needed to resume a SCRAM run in a new conversation. Updated after every gate transition and after every story merge.
-
-The workspace is cleaned up at the user's discretion after the SCRAM run. The orchestrator reports the workspace path in the final summary.
-
-**Resuming a session:** Read `session.md` to restore state. Also read the last 5 lines of `events/stream.log` (if it exists) to understand the most recent activity before context was lost. This gives a mechanical checkpoint trace that supplements the prose state in `session.md`.
-
-### Session Manifest
-
-The session manifest (`SCRAM_WORKSPACE/session.md`) is the single file needed to resume a SCRAM run. It is written at G0 and **updated after every gate transition and every story merge**. Format:
-
-```markdown
----
-project: <absolute project path>
-feature: <feature-name>
-integration_branch: scram/<feature-name>
-workspace: <absolute SCRAM_WORKSPACE path>
-current_gate: G0 | G1 | G2 | G3 | streams | G4 | G5 | complete
-run_type: code | docs | mixed
-retrospective: pending | true | false
-# retrospective transitions: set to "pending" at G0; resolve to "true" (opted in) or "false" (opted out) at G4 after the user prompt; never resolve during the stream phase
-prior_brainstorm: <absolute path to brainstorm workspace, or "none">
-compressed_gates: <comma-separated list of skipped gates, e.g. "G1, G2", or "none">
-tracker: <tracker config or "none">
-created: <YYYY-MM-DD HH:MM:SS>
-updated: <YYYY-MM-DD HH:MM:SS>
----
-
-# SCRAM Session — <feature-name>
-
-## Team
-
-| Name | Role | Agent | Model |
-|------|------|-------|-------|
-| <name> | <role> | <agent type> | <model> |
-
-Example:
-| Name | Role | Agent | Model |
-|------|------|-------|-------|
-| Orion | Dev | developer | sonnet |
-| Barda | Dev | developer | sonnet |
-| Forager | Dev | developer | sonnet |
-| Bug | Dev | developer | sonnet |
-| Metron | Merge Maintainer | merge-maintainer | sonnet |
-| Highfather | Code Maintainer | code-maintainer | sonnet |
-| Beautiful Dreamer | Doc Specialist | doc-specialist | sonnet |
-| Mark Moonrider | Doc Specialist | doc-specialist | sonnet |
-| Esak | Designer | designer | sonnet |
-
-Record the exact team as approved by the user. On resume, redispatch agents with the same names, roles, and models.
-
-## Current State
-<what has been completed, what is in progress, what remains>
-
-## Merged Stories
-- <commit hash> — <story title>
-
-## In-Progress Stories
-- <story title> — <agent name> (<status>)
-
-## Escalations
-- <story title> — <failure reason> — <current tier>
-
-## Notes
-<any context the next orchestrator session needs>
-```
-
-### Saving Memory References
-
-After writing or updating the session manifest, **save a memory reference** so future conversations can discover it:
-
-Write a memory file to the project's memory directory with type `project`:
-
-```markdown
----
-name: scram-session-<feature-name>
-description: Active SCRAM session for <feature-name> — workspace at <SCRAM_WORKSPACE path>
-type: project
----
-
-Active SCRAM run for feature "<feature-name>".
-**Workspace:** <SCRAM_WORKSPACE absolute path>
-**Integration branch:** scram/<feature-name>
-**Current gate:** <gate>
-**Last updated:** <timestamp>
-
-**How to apply:** When the user mentions resuming SCRAM work on this feature, read `session.md` from the workspace path above and resume from the recorded gate.
-```
-
-Update this memory each time the session manifest is updated. Remove it when the SCRAM run completes (G4/G5 done).
-
-## Flow Overview
-
-```
-G0: Environment ──► G1: ADRs ──► G2: User-Facing Docs ──► G3: Story Breakdown ──►┐
-                                                                                   │
-    ┌──────────────────────────────────────────────────────────────────────────────┘
-    │
-    ├──► Dev Stream (RED → GREEN → REFACTOR) ──┐
-    ├──► Merge Stream ─────────────────────────┤──► G4: Final Review ──► [G5: Retrospective]
-    └──► Doc Refinement Stream ────────────────┘
-```
-
-Gates are sequential. Streams are concurrent. Dev work enforces Red-Green-Refactor per story. G5 is optional.
+> See `scram-session` skill for workspace schema, directory layout, session manifest format, and memory reference procedures.
 
 ---
 
@@ -201,27 +83,9 @@ Gates are sequential. Streams are concurrent. Dev work enforces Red-Green-Refact
 
 ### Check for Existing Sessions
 
-Before starting a new run, check for existing SCRAM workspaces for this project:
+Before starting a new run, check for existing SCRAM workspaces and memory references. If found, offer to resume or start fresh.
 
-```bash
-ls -d ~/.scram/$(basename "$PWD")--* 2>/dev/null
-```
-
-Also check memory for any `scram-session-*` references.
-
-If existing workspaces are found, present them to the user:
-
-```
-Existing SCRAM sessions found for this project:
-  1. ~/.scram/my-app--auth-system--20260315-100000/ (gate: streams, last updated: 2026-03-15 14:30)
-  2. ~/.scram/my-app--api-routes--20260310-090000/ (gate: complete, last updated: 2026-03-12 16:00)
-
-Resume an existing session, or start fresh?
-```
-
-**If resuming:** Read `session.md` from the selected workspace. Set `SCRAM_WORKSPACE` to that path. Check the integration branch still exists (`git branch --list`). Skip to the recorded `current_gate` — all prior gate work is already done. Update the session manifest's `updated` timestamp.
-
-**If starting fresh:** Continue with the new session flow below.
+> See `scram-session` skill for session discovery procedures, resume detection, and workspace scanning commands.
 
 ### New Session Setup
 
@@ -230,6 +94,8 @@ Resume an existing session, or start fresh?
 git stash list
 ```
 If stashes exist, stop and notify the user. Do not proceed until the user explicitly clears or acknowledges existing stashes. Starting a SCRAM run with stashes present risks accidental loss during G4 teardown.
+
+Read `scram_version` from `scram/.claude-plugin/plugin.json` (the `"version"` field) and include it in the session manifest frontmatter.
 
 Both maintainers run environment checks and create the integration branch per their agent definitions. The orchestrator creates the SCRAM workspace using `scram-init.sh` and writes the session manifest.
 
@@ -277,7 +143,7 @@ AskUserQuestion:
 3. **Confirm each skip** — For each eligible gate, use `AskUserQuestion` to confirm the skip. Do not auto-skip; the user must approve each gate compression individually.
 4. **Copy stub briefs** — If the manifest lists briefs, copy them into `SCRAM_WORKSPACE/briefs/`. These serve as starting points for G3 story breakdown — devs refine them, not rewrite from scratch.
 5. **Set current_gate** — Advance `current_gate` in `session.md` to the first non-skipped gate.
-6. **Record in session.md** — Add `prior_brainstorm` and `compressed_gates` to the session manifest frontmatter (see Session Manifest format below).
+6. **Record in session.md** — Add `prior_brainstorm` and `compressed_gates` to the session manifest frontmatter. See `scram-session` skill for the manifest format.
 
 **If no**, continue with normal G0 flow.
 
@@ -428,100 +294,15 @@ Each documented feature/behavior/API surface becomes one or more stories. Storie
 
 **If in doubt, split.**
 
-### Tag Complexity
-
-Each story gets a complexity tag that determines the agent model:
-
-| Complexity | Model | When |
-|-----------|-------|------|
-| Simple | sonnet | Clear pattern, few files, context brief covers everything |
-| Moderate | sonnet | Some judgment needed, moderate file scope |
-| Complex | opus | Cross-cutting, architectural judgment, ambiguous requirements |
-
-### Tag Resolution Mode
-
-Each story gets a resolution mode:
-
-| Mode | When | Handling |
-|------|------|----------|
-| `commit` | Story produces code/doc changes | Normal dev dispatch with worktree isolation |
-| `verify-only` | Story requires only verifying acceptance criteria are already met | Orchestrator handles directly — no dev dispatch, no worktree. Check criteria, update tracker, record in backlog with no commit hash. |
-| `conditional` | Story may or may not require changes depending on current state | Dev dispatched to investigate; may resolve as `verify-only` if criteria already met |
-
-### Tag UI/UX Stories (when designer is active)
-
-If a designer is on the team, flag any story that touches user-facing elements (GUI, TUI, CLI output, interactive prompts). These stories require designer approval during the merge stream in addition to standard maintainer approval(s). The designer also contributes design context to these stories' context briefs.
-
 ### Write Context Briefs (as files)
 
-Dispatch `scram:developer-breakdown` without worktree isolation — Tier 2 dispatch. The agent reads docs-as-spec and writes context briefs to `SCRAM_WORKSPACE/briefs/`. No branch is created.
+Dispatch `scram:developer-breakdown` (Tier 2, no worktree). The agent reads docs-as-spec and writes context briefs to `SCRAM_WORKSPACE/briefs/`. No branch is created.
 
-`scram:developer-breakdown` writes a context brief **file** for each story at `SCRAM_WORKSPACE/briefs/<story-slug>.md`:
-
-```markdown
-# <Story Title>
-
-## Story
-<description and acceptance criteria>
-
-## Doc Section
-<reference to the approved doc section this story maps to>
-
-## Budget
-`tight | standard | open`
-
-## Scope Fence
-<For contested-file stories: explicit declaration of which sections/files are OUT OF SCOPE. Leave blank if no contested files.>
-
-## Files
-- <file path> — <why it's relevant>
-
-## Locators
-Use content-stable grep anchors to identify locations in files. **Never use line numbers** — they go stale when earlier stories modify the same files.
-- Good: "Find the sentence beginning with 'X' and change to..."
-- Bad: "Line 42 of foo.ts"
-
-## Types & Interfaces
-- <key type/interface signatures>
-
-## Dependencies
-### Code dependencies
-- <stories this depends on, and whether they're merged>
-
-### Structural dependencies
-- <brief-to-brief format dependencies; merge order constraints>
-
-## Hook Constraint Check
-Can this story pass pre-commit hooks independently? Yes / No — <explain if No>
-
-## Architecture
-<summary of relevant architecture and relevant ADRs from G1>
-
-## Checklist
-<Story-specific checklist items. Populate only the checklist(s) relevant to this story's domain.
-If no special checklist applies, write "none". Available categories:
-- Shared-state, Call-boundary, Async/lifecycle, Test-update (see developer-breakdown agent for item text)>
-
-## UI/UX Context (if tagged)
-<relevant design ADRs, existing UI patterns, component references>
-
-## Deliverables
-- [ ] <file> — <specific change>
-- [ ] <file> — <specific change>
-```
-
-**Brief review rule (G3):** Reject briefs that contain line-number locators. They must use content-anchored references only.
-
-These files live in the SCRAM workspace and are read by dev agents via absolute path.
+> See `scram-brief` skill for context brief format, complexity tagging, resolution modes, and backlog construction.
 
 ### Prioritize
 
-| Priority | Meaning |
-|----------|---------|
-| P0 — Critical | Blocks other stories, touches shared interfaces/types; do first |
-| P1 — High | Core feature work; pick next |
-| P2 — Normal | Independent work, no blockers |
-| P3 — Low | Nice-to-have, polish, edge cases |
+Priority levels: P0 (blocks others), P1 (core), P2 (independent), P3 (polish). See `scram-brief` for the full prioritization table.
 
 ### Create Tracker Issues (if configured)
 
@@ -529,22 +310,7 @@ If a tracker was provided in G0, create issues for each story (or link existing 
 
 ### Write the Backlog File
 
-Write the backlog to `SCRAM_WORKSPACE/backlog.md`:
-
-```markdown
-# SCRAM Backlog — <feature-name>
-
-| # | Story | Priority | Complexity | Resolution | Depends On | UI/UX | Status | Agent | Commit |
-|---|-------|----------|------------|------------|------------|-------|--------|-------|--------|
-| 1 | Story A | P0 | simple | commit | — | no | pending | — | — |
-| 2 | Story B | P0 | complex | commit | — | no | pending | — | — |
-| 3 | Story C | P1 | moderate | commit | 1, 2 | yes | pending | — | — |
-| 4 | Story D | P2 | simple | verify-only | — | no | pending | — | — |
-```
-
-**Status values:** `pending` → `in_progress` → `in_review` → `merged` | `failed` → `escalated` → `in_progress`
-
-Maintainers update this file as stories progress.
+Write the backlog to `SCRAM_WORKSPACE/backlog.md`. See `scram-brief` for the full backlog file format and status value definitions.
 
 ### Present the Backlog
 
@@ -574,7 +340,10 @@ Before dispatching any stories, the orchestrator creates a persistent team for t
 1. **Create the team** via `TeamCreate` with `team_name: "scram-<feature-name>"`
 2. **Spawn Metron** (merge maintainer) as a named teammate: `Agent` with `name: "Metron"`, `team_name: "scram-<feature-name>"`, `subagent_type: "scram:merge-maintainer"`
 3. **Spawn Highfather** (code maintainer) as a named teammate: `Agent` with `name: "Highfather"`, `team_name: "scram-<feature-name>"`, `subagent_type: "scram:code-maintainer"`
-4. **Seed tasks** from `SCRAM_WORKSPACE/backlog.md` via `TaskCreate` — one task per story. These mirror the file backlog for within-session coordination. **`backlog.md` remains authoritative.** Tasks API is a convenience view, not the source of truth.
+
+**`backlog.md` is the sole source of truth for story status.** Do not seed tasks into the Tasks API.
+
+> **ADR:** Tasks API dropped — `backlog.md` is sole source of truth. The Tasks API was not verified in use for real-time coordination and created silent sync drift between in-memory task state and the persistent file. Removing it eliminates that failure class and makes `backlog.md` → `session.md` the single recovery mechanism.
 
 The maintainers stay alive as persistent teammates for the entire stream phase (G3 to G4). They coordinate dual-approval directly via `SendMessage` without the orchestrator as relay. They go idle between turns — this is normal. Sending a message wakes them.
 
@@ -619,25 +388,13 @@ If a maintainer's session dies mid-stream (context exhaustion, crash):
 
 `scram:developer-impl` agents are **always one-shot** with `isolation: "worktree"`. They are NOT team members. The orchestrator dispatches them directly via the `Agent` tool — on maintainer instruction via SendMessage or task state.
 
-**CRITICAL: When dispatching dev agents, the orchestrator MUST include explicit instructions to `git checkout` the integration branch before starting work.** The `isolation: "worktree"` parameter creates a worktree but may default to branching from `main` or HEAD. The agent's prompt must include:
-
-```
-IMPORTANT: Before starting any work, run:
-  ${CLAUDE_PLUGIN_ROOT}/scripts/worktree-init.sh scram/<feature-name> <story-slug>
-This verifies worktree isolation and creates the story branch from the integration branch.
-If the script is unavailable, run manually:
-  git checkout scram/<feature-name>
-  git checkout -b scram/<feature-name>/<story-slug>
-```
-
-The `worktree-init.sh` script enforces isolation mechanically — it verifies the agent is in a worktree (not the main repo), confirms the worktree is based on the integration branch, creates the story branch, and verifies HEAD. It exits non-zero with a clear error on any check failure, preventing agents from committing to the wrong branch.
+The dev agent runs `worktree-init.sh` per its agent definition (`scram/agents/developer-impl.md`). A `PostToolUse` hook on Agent provides a mechanical backstop — verifying worktree isolation after each dev dispatch and writing a HALT file if a violation is detected.
 
 **Thin orchestrator discipline:** Pass paths, not contents. Each agent dispatch includes:
 - Story ID and slug
 - SCRAM workspace path (absolute)
 - Context brief file path (`SCRAM_WORKSPACE/briefs/<story-slug>.md`) — the agent reads this from disk
 - **Integration branch name** — the agent MUST branch from this, not from `main`
-- The checkout instructions above
 
 Do not embed brief contents, doc sections, or file contents inline in the dispatch prompt. Agents read their own context from disk. This prevents context bloat and ensures agents work from current disk state rather than stale embedded snapshots.
 
@@ -658,38 +415,11 @@ Dispatch `scram:developer-impl` with the context brief path — the agent follow
 
 **Hook constraint audit (G3):** For each story, confirm it can pass pre-commit hooks independently without relying on changes from sibling stories. The export-before-deletion ordering is a named anti-pattern: if story A removes an export that story B depends on, story B must be fully merged before story A is dispatched. Record this in both stories' `## Dependencies` sections.
 
-**Escalation on failure (using failure taxonomy):**
+**Escalation on failure:**
 
-Agents report failures with a structured reason. Maintainers use the reason to decide next steps:
+When a story fails, maintainers use the failure reason from the Story Report to decide next steps. Escalation may proceed sonnet → opus for capability failures; if the same story fails twice, escalate to user.
 
-| Failure Reason | Action |
-|---------------|--------|
-| `context_exhaustion` | Redispatch with same model — agent ran out of context, not capability |
-| `test_failure` | Review test output, redispatch at same or next tier |
-| `build_error` | Check integration branch health before redispatching |
-| `missing_dependency` | Verify dependency story is merged, update context brief, redispatch |
-| `unclear_spec` | Flag to user for clarification, do not redispatch until resolved |
-| `pre_flight_failure` | Investigate integration branch health before redispatching |
-
-Default escalation path for capability failures: sonnet → opus. **If the same story fails review twice for the same root cause**, the orchestrator must write an escalation entry in `session.md`, diagnose the pattern, and adjust agent instructions before retrying. Do not blindly redispatch. If the same story fails twice at the same tier, maintainers escalate to user.
-
-**Required escalation brief format:** When escalating to the user, use this structure so the user gets an actionable question, not a vague status update:
-
-```markdown
-## Escalation: <title>
-
-**Attempted:** <what was tried>
-**Failed because:** <root cause>
-**Checkpoint type:** human-verify | decision | human-action
-  - `human-verify` — read and confirm, no action required from you
-  - `decision` — choose between the options below
-  - `human-action` — you need to perform an action before the run can continue
-**Decision needed:** <closed question with specific options>
-**Options:**
-1. <option A> — <consequence>
-2. <option B> — <consequence>
-3. <option C> — <consequence>
-```
+> Failure taxonomy, escalation path, and escalation brief format are defined in the `scram:scram-escalation` sub-skill.
 
 ### Merge Stream
 
@@ -755,6 +485,25 @@ Record the answer. If yes, G5 runs after G4.
 9. Merge or PR the integration branch to `main`
 10. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
 11. If no retrospective: remove the `scram-session-*` memory reference (run is done)
+12. **Workspace cleanup** — Offer to clean up session artifacts:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "Clean up SCRAM workspace and worktree remnants?"
+      header: "Cleanup"
+      options:
+        - label: "Keep everything"
+          description: "Workspace stays at SCRAM_WORKSPACE for future reference"
+        - label: "Delete workspace"
+          description: "Remove SCRAM_WORKSPACE directory"
+        - label: "Full cleanup"
+          description: "Remove workspace + any .claude/worktrees/ remnants in project root"
+      multiSelect: false
+```
+
+If "Delete workspace": `rm -rf "$SCRAM_WORKSPACE"`
+If "Full cleanup": also `rm -rf .claude/worktrees/` if it exists in the project root
 
 If issues found, add fix stories to the backlog and redispatch.
 
@@ -773,31 +522,9 @@ The retro facilitator is self-contained. It reads workspace artifacts, dispatche
 
 ## Session State Updates
 
-The session manifest MUST be kept current. Update `SCRAM_WORKSPACE/session.md` (and the corresponding memory reference) at these points:
+The session manifest must be kept current. Update it at every gate transition, story dispatch, story merge, escalation, and when approaching context limits.
 
-| Event | Update |
-|-------|--------|
-| Gate transition (G0→G1, G1→G2, etc.) | Set `current_gate`, update `Current State` |
-| Maintainer team created (G3) | Record team name in `Current State` |
-| Story dispatched | Add to `In-Progress Stories` |
-| Story merged | Move to `Merged Stories` with commit hash, remove from in-progress |
-| Story failed/escalated | Add to `Escalations` with failure reason and tier |
-| Doc refinement batch completed | Note in `Current State` |
-| Maintainer team shut down (G4) | Note in `Current State` |
-| Context limit approaching | Write full state to manifest before checkpointing |
-
-### Context Limit Recovery
-
-If you approach context limits, ensure the session manifest is fully up to date, then present the workspace path to the user:
-
-```
-Approaching context limits. Session state saved to:
-  SCRAM_WORKSPACE/session.md
-
-Resume in a new conversation — SCRAM will discover this session automatically.
-```
-
-The user can continue in a fresh session. The new orchestrator will find the workspace via the discovery flow at G0 (filesystem scan + memory reference) and resume from the recorded gate.
+> See `scram-session` skill for the full state update event table and context limit recovery procedures.
 
 ## Constraints
 
