@@ -64,12 +64,14 @@ SCRAM persists state in a **global workspace directory** outside the project rep
     ├── backlog.md              # tracked backlog with story status
     ├── briefs/
     │   └── <story-slug>.md     # context brief per story
-    └── retro/                  # retrospective artifacts (G5, if enabled)
-        ├── tickets/
-        │   └── NNN.md          # anonymous tickets
-        ├── votes.md            # vote tallies
-        └── discussions/
-            └── <topic-slug>.md # consensus discussion outputs
+    ├── retro/                  # retrospective artifacts (G5, if enabled)
+    │   ├── in-flight.md        # appended during streams; read by retro facilitator at G5
+    │   ├── tickets/
+    │   │   ├── metron.md
+    │   │   └── highfather.md
+    │   └── discussions/
+    │       └── <topic-slug>.md # consensus discussion outputs
+    └── events/                 # reserved for future use
 ```
 
 **Workspace path construction** (at G0):
@@ -700,138 +702,12 @@ If issues found, add fix stories to the backlog and redispatch.
 
 ## G5: Retrospective (optional)
 
-If the user opted in to a retrospective during G0, run this gate after G4 completes.
+If the user opted in to a retrospective during G0, dispatch `scram:scram-retro` with:
+- `SCRAM_WORKSPACE` — absolute path to the workspace
+- `in_flight_path` — `SCRAM_WORKSPACE/retro/in-flight.md` (pass the path; skill checks if the file exists)
+- `session_context` — `{ total_stories, escalations, halt_events, feature_name }`
 
-The retrospective is run by the **two maintainers only** (Metron and Highfather), dispatched as fresh one-shots. They are the only agents with a full-stream view — they saw every story, every approval, every conflict. Dev agents only experienced their single story. With only two participants, anonymity is not meaningful, so tickets are **attributed**.
-
-All artifacts are persisted under `SCRAM_WORKSPACE/retro/`.
-
-```
-SCRAM_WORKSPACE/retro/
-├── tickets/
-│   ├── metron.md           # Metron's tickets
-│   └── highfather.md       # Highfather's tickets
-└── discussions/
-    ├── <topic-slug>.md     # discussion outputs
-    └── ...
-```
-
-### Phase 1: Ticket Submission
-
-Dispatch both maintainers as **fresh one-shots** (not the persistent team — that was shut down at G4). Each receives:
-- The final `SCRAM_WORKSPACE/backlog.md` (showing story flow, escalations, failures)
-- The final `SCRAM_WORKSPACE/session.md`
-
-Each maintainer writes their tickets to `SCRAM_WORKSPACE/retro/tickets/<name>.md`. Tickets are **attributed** — each maintainer owns their observations.
-
-Ticket format:
-
-```markdown
-# Tickets — <Maintainer Name>
-
-## 1. <short title>
-
-### Category
-process | tooling | communication | prompt_quality | missing_capability
-
-### Observation
-<what happened or didn't happen — factual>
-
-### Impact
-<how this affected the SCRAM run — time wasted, quality risk, friction>
-
-### Suggested Improvement
-<specific, actionable change to SKILL.md or an agent definition>
-<include the file to change and what to change in it>
-
-## 2. <short title>
-...
-```
-
-Tickets must focus on **improving the SCRAM skill and agent prompts** — not the feature code. Each ticket should be specific enough to act on.
-
-**CRITICAL: No business-specific information.** Tickets must describe process improvements in generic terms. Do not reference the feature name, project name, file paths, code changes, business logic, or any details that would reveal what was being built. Describe only how the SCRAM workflow, agent prompts, or skill definitions can be improved. This constraint applies to all retro artifacts.
-
-### Phase 2: Discussion
-
-Dispatch both maintainers again. Each reads all tickets (theirs and the other's). For each ticket, they:
-- **Agree** and propose a specific change
-- **Disagree** with reasoning
-- **Refine** with modifications
-
-The orchestrator identifies tickets with agreement and synthesizes the proposed changes. Where disagreement exists, present both views to the user.
-
-Write discussion results to `SCRAM_WORKSPACE/retro/discussions/<topic-slug>.md`:
-
-```markdown
-# Discussion: <ticket title>
-
-## Ticket
-<original ticket text>
-
-## Status
-agreed | disagreed
-
-## Proposed Change
-**File:** <path to skill or agent file>
-**Change:** <add | modify | remove>
-**Current text:**
-> <the existing text, if modifying or removing>
-
-**Proposed text:**
-> <the agreed text>
-
-**Rationale:** <why this improves the prompt>
-
-## Disagreement (if any)
-- <maintainer>: <concern>
-```
-
-### Compile and Present
-
-The orchestrator compiles the results:
-
-```
-## SCRAM Retrospective
-
-### Tickets: <count> from Metron, <count> from Highfather
-
-### Agreed Changes
-1. <ticket title> — <summary of proposed change>
-2. ...
-
-### Disagreements
-1. <ticket title> — Metron: <view> / Highfather: <view>
-
-### Other Tickets
-- <ticket title> — <one-line summary>
-```
-
-**Agreed changes** are presented for the user to approve and apply. **Disagreements** are presented with both views for the user to decide. The orchestrator does not apply changes automatically.
-
-### File Issue on SCRAM Plugin Repo
-
-After presenting the retrospective, use `AskUserQuestion`:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "File these retro results as an issue on alxjrvs/skills?"
-      header: "File issue"
-      options:
-        - label: "Yes (Recommended)"
-          description: "Open an issue to track improvements to the SCRAM plugin"
-        - label: "No"
-          description: "Skip — results are saved in the workspace"
-      multiSelect: false
-```
-
-If yes, create a GitHub issue on `alxjrvs/skills` with:
-- **Title:** `retro: <count> consensus changes from SCRAM run`
-- **Labels:** `retrospective`
-- **Body:** The compiled retrospective output (consensus changes, partial consensus, other tickets) — **scrubbed of all business-specific information**. No feature names, project names, file paths, code snippets, or business logic. Only generic process improvements to SCRAM skill and agent definitions. This issue is public — treat it as such.
-
-After presenting the retrospective, update session manifest to `complete` and remove the `scram-session-*` memory reference.
+The retro facilitator is self-contained. It reads workspace artifacts, dispatches maintainers as fresh one-shots, compiles results, and presents consensus changes to the user. After the retro completes, update session manifest to `complete` and remove the `scram-session-*` memory reference.
 
 ## Session State Updates
 

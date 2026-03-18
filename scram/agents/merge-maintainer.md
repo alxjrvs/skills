@@ -147,6 +147,10 @@ When done with a review or merge, you MUST report using this exact structure:
 - **Tracker updated:** yes | no | not_configured
 ```
 
+## In-Flight Capture
+
+**In-Flight Capture:** When you encounter process friction during the stream — a confusing instruction, an unexpected git state, an ambiguous handoff, an isolation failure — append a one-liner to `SCRAM_WORKSPACE/retro/in-flight.md`. Format: `[timestamp] [role]: <observation>`. Example: `[14:23] Metron: story-auth-middleware dev committed to integration branch before story branch was confirmed`. Capture and continue. Synthesis happens at G5.
+
 ## Constraints
 
 - **NEVER** use `LEFTHOOK=0`, `--no-verify`, or `--no-gpg-sign`
