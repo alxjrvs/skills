@@ -596,12 +596,16 @@ Each story follows three mandatory phases in order:
 - **All tests must still pass after refactor**
 
 **Dispatch rules:**
+- **P0 stories run first as a separate wave** with a quality gate before P1+ begins. This gates complex work on a proven baseline.
 - Max **5 concurrent dev agents**
 - Each agent works **one story at a time**, completing all three phases
 - **Do not dispatch a story whose `Depends On` column has unmerged stories** — check backlog status first
+- **Stories with migrations serialize** — do not parallelize stories that include migrations touching the same tables
 - Use the model matching the story's complexity tag
-- Agents return a **structured Story Report** to the maintainers when complete
+- Agents return a **structured Story Report** (including branch name and commit SHA) to the maintainers when complete
 - Pull-based: as an agent finishes, maintainers dispatch the next story from the backlog
+
+**Contested files:** During G3 backlog construction, identify stories that touch the same files. Add a `Contested Files` note. Same-file stories should be assigned to the same agent or given explicit merge-order annotations to avoid conflicts.
 
 **Escalation on failure (using failure taxonomy):**
 
@@ -616,15 +620,20 @@ Agents report failures with a structured reason. Maintainers use the reason to d
 | `unclear_spec` | Flag to user for clarification, do not redispatch until resolved |
 | `pre_flight_failure` | Investigate integration branch health before redispatching |
 
-Default escalation path for capability failures: sonnet → opus. If the same story fails twice at the same tier, maintainers escalate to user.
+Default escalation path for capability failures: sonnet → opus. **If the same story fails review twice for the same root cause**, the orchestrator must write an escalation entry in `session.md`, diagnose the pattern, and adjust agent instructions before retrying. Do not blindly redispatch. If the same story fails twice at the same tier, maintainers escalate to user.
 
 ### Merge Stream
 
 Both maintainers are persistent teammates. As each dev agent completes:
 
-1. **Verify worktree metadata** — confirm the agent response includes `worktreePath` and `worktreeBranch`. If either is missing, the agent likely did not commit and the work is lost — flag immediately and redispatch before proceeding.
-2. **Verify isolation** — confirm the commit was made in the worktree on the correct story branch, NOT on the integration branch or main repo. If the agent committed on the wrong branch, see Cherry-Pick Fallback below.
-3. The orchestrator sends the **structured Story Report** to the maintainer team via `SendMessage`
+1. **Pre-review git health check** — before anything else, confirm:
+   - The agent's reported branch exists (`git branch --list`)
+   - The agent's reported commit SHA exists on that branch (`git log --oneline <branch> | head -1`)
+   - `git diff <integration-branch>...<story-branch>` is non-empty
+   If any check fails, route back as a **git state issue** (not an implementation rejection) and redispatch.
+2. **Verify worktree metadata** — confirm the agent response includes `worktreePath` and `worktreeBranch`. If either is missing, the agent likely did not commit and the work is lost — flag immediately and redispatch before proceeding.
+3. **Verify isolation** — confirm the commit was made in the worktree on the correct story branch, NOT on the integration branch or main repo. If the agent committed on the wrong branch, see Cherry-Pick Fallback below.
+4. The orchestrator sends the **structured Story Report** to the maintainer team via `SendMessage`
 4. Maintainers review the worktree diff against the integration branch
 5. **Scope check** — verify the changed file list matches the story brief's `## Deliverables` section. Any out-of-scope file path is an automatic rejection. This catches cross-story contamination from concurrent agents.
 6. **Verify one-commit-per-story** — reject if multiple stories were bundled into one commit
@@ -634,8 +643,10 @@ Both maintainers are persistent teammates. As each dev agent completes:
 10. **Lint/export check** — if the story adds or modifies exports, run Knip or equivalent dead-export detection before approving
 11. **Simple stories**: single maintainer approval (either Metron or Highfather)
 12. **Moderate/complex stories**: both maintainers approve independently via `SendMessage` peer-to-peer — Metron for correctness, Highfather for harmony. No orchestrator relay needed.
+    **Disagreement protocol:** If maintainers disagree: (1) each states position with rationale, (2) one rebuttal round, (3) if unresolved, conservative-wins or escalate to user. Dual-approval must not silently degrade to deference.
 13. **UI/UX stories** (when designer is active): designer approval required **in addition to** maintainer approval(s)
-14. Maintainers notify the orchestrator of the decision. The orchestrator executes the merge into the integration branch (one atomic commit per story).
+14. **Artifact stories**: any story that generates or checks in a derived artifact requires two consecutive clean runs before merge approval.
+15. Maintainers notify the orchestrator of the decision. The orchestrator executes the merge into the integration branch (one atomic commit per story).
 15. **Post-merge typecheck** — run `bun run typecheck` (or equivalent) from the repo root against the integration branch after merge. Worktree typecheck is necessary but not sufficient — downstream consumers may only exist on the integration branch. Pre-push hooks are a safety net, not a substitute.
 16. Run full test suite after merge
 17. Update `SCRAM_WORKSPACE/backlog.md` — set status to `merged`, record commit hash
@@ -682,6 +693,10 @@ After all three streams complete:
 10. If no retrospective: remove the `scram-session-*` memory reference (run is done)
 
 If issues found, add fix stories to the backlog and redispatch.
+
+**Follow-up story sweep:** Before closing G4, sweep `session.md` for any items marked "partial," "deferred," or "ready for future wiring." Each must become either a new backlog story or an explicit decision that partial work is acceptable. Do not leave loose ends undocumented.
+
+**Compressed gate tracking:** If G1/G2 were skipped (per gate-skip criteria), record in `session.md` under a "Compressed Gates" section: `G1/G2 compressed — ADR source: <scramstorm workspace path or external reference>`.
 
 ## G5: Retrospective (optional)
 

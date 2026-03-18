@@ -51,11 +51,13 @@ When assigned a story (including escalated stories that failed on a previous att
    git checkout -b <integration-branch>/<story-slug>
    ```
    The integration branch name is provided in your dispatch prompt. **NEVER work directly on `main`.**
-2. **Isolation Contract** — before making ANY file modifications, verify all three:
+2. **Isolation Contract** — before making ANY file modifications, verify all four:
    - `pwd` is within your assigned worktree path (not the main repo)
-   - `git branch --show-current` matches your story branch (`<integration-branch>/<story-slug>`)
+   - `git rev-parse --abbrev-ref HEAD` matches your story branch (`<integration-branch>/<story-slug>`)
    - `git status` shows no untracked files from other stories
+   - You are NOT on the integration branch itself — you must be on a story branch created FROM it
    If ANY check fails, **STOP and report to the orchestrator**. Do not proceed. Do not commit on the integration branch directly.
+   **Re-verify before every commit** — run `git rev-parse --abbrev-ref HEAD` again before `git commit`. Include the branch name and commit SHA in your completion report.
 3. **Pre-flight check** — before writing any code, verify:
    - You are on the correct branch (a new branch created from the integration branch, NOT from `main`)
    - The context brief file exists at `SCRAM_WORKSPACE/briefs/<story-slug>.md`
@@ -106,14 +108,38 @@ When receiving an escalated story (one that failed on a previous attempt), you a
 - Include: what you completed, what remains, and any partial work in progress
 - The maintainers will dispatch a fresh agent to continue
 
+## Story-Specific Checklists
+
+Apply these when the story touches their domain:
+
+**Shared-state stories** (DB, shared config, global state):
+- Read the current version from the integration branch before writing changes
+- Do NOT modify non-test files to make tests pass — if a test can't pass without changing application code, escalate
+- Summarize what each fixture/migration change means semantically before committing
+
+**Call-boundary stories** (removing/renaming handlers, endpoints, exports):
+- If you removed or renamed a handler, verify all callers have been updated or removed
+- Check both sides of every call boundary (server ↔ client, module ↔ consumer)
+
+**Async/lifecycle stories** (React hooks, timers, event handlers, queues):
+- No async calls inside setState updaters
+- Closures in timers/callbacks read from refs, not captured state
+- beforeunload/cleanup handlers flush pending work, not just cancel timers
+- Creation guards prevent duplicate concurrent async operations
+
+**Test-update stories**:
+- Do NOT modify application code to make tests pass. If a test cannot pass without changing application code, escalate.
+
 ## Constraints
 
 - Strict TDD: tests before implementation, always
 - Follow all project code style (read CLAUDE.md)
 - **CRITICAL: You MUST `git add` and `git commit` your changes before completing.** Uncommitted work in a worktree is destroyed when the agent exits. Use the commit message format from your dispatch instructions.
 - **One commit per story.** Never bundle multiple stories into a single commit, even if they touch overlapping files. Each story produces exactly one atomic commit.
+- **Your commit must contain only changes required by this story's acceptance criteria.** If you find adjacent bugs, document them for the orchestrator — do not fix them in this commit.
 - Do NOT run `git push` or any destructive git operations
 - **NEVER** use `--no-verify`, `LEFTHOOK=0`, `--no-gpg-sign`, or any flag that skips hooks or checks. If a hook fails, investigate and fix the root cause.
+- If in-flight review signals are expected from overlapping stories, hold your commit until the signal resolves.
 - If you encounter pre-existing issues (lint errors, failing tests), report them — do not work around them
 
 ## Report Format
@@ -123,6 +149,8 @@ When done, you MUST report using this exact structure:
 ```
 ## Story Report
 - **Story:** <story-id>
+- **Branch:** <branch name from git rev-parse --abbrev-ref HEAD>
+- **Commit:** <commit SHA from git rev-parse HEAD>
 - **Status:** completed | partial | failed
 - **Phase reached:** RED | GREEN | REFACTOR
 - **Failure reason:** none | context_exhaustion | test_failure | build_error | missing_dependency | unclear_spec | pre_flight_failure

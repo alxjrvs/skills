@@ -154,6 +154,7 @@ AskUserQuestion:
 Dispatch **all team members in parallel**. Each agent receives:
 - The framed problem (`BRAINSTORM_WORKSPACE/problem.md`)
 - Instructions to research from their role's perspective
+- A **primary exploration scope** — assign each agent a distinct area of the codebase to own (e.g., "you own the API layer," "you own the data model"). Agents can read outside their scope, but the primary assignment reduces redundant traversal while preserving cross-agent validation where agents overlap intentionally.
 - The codebase context (they can read files, search code, explore patterns)
 
 **Mandatory evidence pass:** Before voicing any opinion on a codebase problem, each agent must perform at minimum 5 specific file reads that ground their claims in what the code actually says. No estimates, risk ratings, or quantitative claims (e.g., "N services are missing X") without a search to confirm the number. Research output must cite file paths for every structural claim.
@@ -184,9 +185,13 @@ Research format:
 - <things they couldn't resolve that need team discussion>
 ```
 
+### Open Questions Resolution
+
+After research completes and before tickets, the orchestrator collects all open questions from research documents, deduplicates them, and dispatches a quick resolution pass. Questions answerable by code search are resolved immediately (one agent, one grep). Questions requiring external knowledge are flagged as blockers on any ticket that depends on them.
+
 ## Phase 3: Tickets (anonymous)
 
-After all research is complete, dispatch **every agent again**. Each agent reads:
+After research and question resolution, dispatch **every agent again**. Each agent reads:
 - The framed problem
 - **All** research findings (not just their own)
 
@@ -213,15 +218,28 @@ Ticket format:
 
 ## Effort Estimate
 low | moderate | high | very_high
+
+## Dependencies
+- Requires: <ticket numbers that must ship first, or "none">
+- Enables: <what this unblocks, or "none">
 ```
 
 Agents may submit tickets proposing the same approach — convergence is signal. Different framings add nuance.
 
 **State contract requirement:** If the brainstorm touches async state machines, queues, or event-driven systems, each ticket must declare what state each entity is in after the proposed change runs under the named failure scenario.
 
+### Deduplication Gate
+
+Before voting, the orchestrator (or Metron as the analyst) scans all tickets and:
+- Flags tickets that target the same code surface or problem
+- Merges functionally identical tickets into composite tickets
+- Keeps distinct tickets that offer genuinely different solutions to the same problem
+
+This ensures votes land on distinct approaches rather than splitting across phrasings of the same fix.
+
 ## Phase 4: Vote
 
-Dispatch **every agent again**. Each reads all tickets in `BRAINSTORM_WORKSPACE/tickets/` and votes for the ones most relevant to the problem. Each agent gets votes equal to **half the ticket count, rounded up** (e.g., 10 tickets = 5 votes per agent).
+Dispatch **every agent again** with the deduplicated ticket set. Each reads all tickets in `BRAINSTORM_WORKSPACE/tickets/` and votes for the ones most relevant to the problem. Each agent gets votes equal to **half the ticket count, rounded up** (e.g., 10 tickets = 5 votes per agent).
 
 Each agent returns their votes as a list of ticket numbers. The orchestrator tallies votes and writes the results to `BRAINSTORM_WORKSPACE/votes.md`:
 
@@ -240,7 +258,18 @@ Each agent returns their votes as a list of ticket numbers. The orchestrator tal
 
 Discuss tickets that received a **majority of votes** (>50% of participating agents voted for them). Low-scoring tickets are ignored unless an agent flags one as critical (in which case, include it).
 
-For each winning ticket, dispatch **all agents** for an open, **attributed** debate. Each agent:
+**Unanimous tickets skip discussion.** If a ticket received votes from every agent, emit a one-line "Unanimous — no discussion needed" note and move it directly to the final output. Only run discussion for tickets where the vote was split or contentious.
+
+### Steward Triage
+
+Before discussion opens, the orchestrator (or Highfather) tags each winning ticket's items as:
+- `ship` — ready to act on, discuss implementation
+- `decide` — needs a product/architecture decision before acting
+- `investigate` — needs more research before deciding
+
+Discussion threads only debate `ship` items. `decide` items get a named owner and resolution trigger. `investigate` items are parked with a named owner.
+
+For each non-unanimous winning ticket, dispatch **all agents** for an open, **attributed** debate. Each agent:
 - **Supports**, **challenges**, or **refines** the ticket — with specific reasons grounded in their research
 - States whether the approach can ship independently or requires another change to land first (**dependency check**)
 - Proposes concrete modifications if they see improvements
@@ -338,6 +367,21 @@ The orchestrator synthesizes the debate into structured options. Write to `BRAIN
 Each open question must include a **named decision owner** and a **resolution trigger** (deadline, blocker, or escalation condition). Open questions without owners are organizational debt. If the brainstorm cannot name an owner, flag the question as a blocker on the relevant option.
 - <question> — **Owner:** <who decides> — **Resolve by:** <trigger>
 ```
+
+### Prerequisite Verification
+
+Any ticket that ends with an explicit "verify X before dispatching" condition must be resolved within the same session. Assign one agent a confirmation pass on every named prerequisite before the session closes. Do not export unresolved prerequisites into the backlog.
+
+### Quick-Win Briefs
+
+For any option estimated at **low effort** (under ~2 hours), the brainstorm output should include a **draft story brief** ready for immediate dispatch. Quick wins leave the workspace as shippable artifacts, not just ranked options.
+
+### Disposition Labels
+
+Every observation that didn't become a winning ticket must carry one of three labels in the final output:
+- `follow-up-brainstorm` — complex enough to warrant its own brainstorm
+- `backlog-ticket` — should be filed as a ticket outside this brainstorm
+- `accepted-risk` — acknowledged, not worth fixing now, with stated rationale
 
 ### Record ADRs
 
