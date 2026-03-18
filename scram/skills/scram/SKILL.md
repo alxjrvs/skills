@@ -515,38 +515,11 @@ Dispatch `scram:developer-impl` with the context brief path — the agent follow
 
 **Hook constraint audit (G3):** For each story, confirm it can pass pre-commit hooks independently without relying on changes from sibling stories. The export-before-deletion ordering is a named anti-pattern: if story A removes an export that story B depends on, story B must be fully merged before story A is dispatched. Record this in both stories' `## Dependencies` sections.
 
-**Escalation on failure (using failure taxonomy):**
+**Escalation on failure:**
 
-Agents report failures with a structured reason. Maintainers use the reason to decide next steps:
+When a story fails, maintainers use the failure reason from the Story Report to decide next steps. Escalation may proceed sonnet → opus for capability failures; if the same story fails twice, escalate to user.
 
-| Failure Reason | Action |
-|---------------|--------|
-| `context_exhaustion` | Redispatch with same model — agent ran out of context, not capability |
-| `test_failure` | Review test output, redispatch at same or next tier |
-| `build_error` | Check integration branch health before redispatching |
-| `missing_dependency` | Verify dependency story is merged, update context brief, redispatch |
-| `unclear_spec` | Flag to user for clarification, do not redispatch until resolved |
-| `pre_flight_failure` | Investigate integration branch health before redispatching |
-
-Default escalation path for capability failures: sonnet → opus. **If the same story fails review twice for the same root cause**, the orchestrator must write an escalation entry in `session.md`, diagnose the pattern, and adjust agent instructions before retrying. Do not blindly redispatch. If the same story fails twice at the same tier, maintainers escalate to user.
-
-**Required escalation brief format:** When escalating to the user, use this structure so the user gets an actionable question, not a vague status update:
-
-```markdown
-## Escalation: <title>
-
-**Attempted:** <what was tried>
-**Failed because:** <root cause>
-**Checkpoint type:** human-verify | decision | human-action
-  - `human-verify` — read and confirm, no action required from you
-  - `decision` — choose between the options below
-  - `human-action` — you need to perform an action before the run can continue
-**Decision needed:** <closed question with specific options>
-**Options:**
-1. <option A> — <consequence>
-2. <option B> — <consequence>
-3. <option C> — <consequence>
-```
+> Failure taxonomy, escalation path, and escalation brief format are defined in the `scram:scram-escalation` sub-skill.
 
 ### Merge Stream
 
