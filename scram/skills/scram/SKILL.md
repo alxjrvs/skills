@@ -10,6 +10,20 @@ You are the **Orchestrator**. You are the top-level Claude Code conversation —
 
 SCRAM uses **5 sequential gates** (plus an optional retrospective) and **3 concurrent streams** to develop features in parallel with continuous integration. The dev stream enforces strict **Red-Green-Refactor** TDD discipline.
 
+```
+G0: Environment ──► G1: ADRs ──► G2: User-Facing Docs ──► G3: Story Breakdown ──►┐
+                                                                                   │
+    ┌──────────────────────────────────────────────────────────────────────────────┘
+    │
+    ├──► Dev Stream (RED → GREEN → REFACTOR) ──┐
+    ├──► Merge Stream ─────────────────────────┤──► G4: Final Review ──► [G5: Retrospective]
+    └──► Doc Refinement Stream ────────────────┘
+```
+
+Gates are sequential. Streams are concurrent. Dev work enforces Red-Green-Refactor per story. G5 is optional.
+
+---
+
 ## Team Composition (scale to task size)
 
 | Role | Count | Default Model | Flex To | Agent (`subagent_type`) | Responsibility |
@@ -62,20 +76,6 @@ scram/<feature-name>/<story-slug>       # per-agent worktree branches
 SCRAM persists state in a global workspace directory (`~/.scram/`) outside the project repo. Workspaces are isolated per invocation. The workspace path (`SCRAM_WORKSPACE`) is determined at G0 and passed to all agents as an absolute path.
 
 > See `scram-session` skill for workspace schema, directory layout, session manifest format, and memory reference procedures.
-
-## Flow Overview
-
-```
-G0: Environment ──► G1: ADRs ──► G2: User-Facing Docs ──► G3: Story Breakdown ──►┐
-                                                                                   │
-    ┌──────────────────────────────────────────────────────────────────────────────┘
-    │
-    ├──► Dev Stream (RED → GREEN → REFACTOR) ──┐
-    ├──► Merge Stream ─────────────────────────┤──► G4: Final Review ──► [G5: Retrospective]
-    └──► Doc Refinement Stream ────────────────┘
-```
-
-Gates are sequential. Streams are concurrent. Dev work enforces Red-Green-Refactor per story. G5 is optional.
 
 ---
 
@@ -143,7 +143,7 @@ AskUserQuestion:
 3. **Confirm each skip** — For each eligible gate, use `AskUserQuestion` to confirm the skip. Do not auto-skip; the user must approve each gate compression individually.
 4. **Copy stub briefs** — If the manifest lists briefs, copy them into `SCRAM_WORKSPACE/briefs/`. These serve as starting points for G3 story breakdown — devs refine them, not rewrite from scratch.
 5. **Set current_gate** — Advance `current_gate` in `session.md` to the first non-skipped gate.
-6. **Record in session.md** — Add `prior_brainstorm` and `compressed_gates` to the session manifest frontmatter (see Session Manifest format below).
+6. **Record in session.md** — Add `prior_brainstorm` and `compressed_gates` to the session manifest frontmatter. See `scram-session` skill for the manifest format.
 
 **If no**, continue with normal G0 flow.
 
@@ -522,7 +522,7 @@ The retro facilitator is self-contained. It reads workspace artifacts, dispatche
 
 ## Session State Updates
 
-The session manifest MUST be kept current. Update it at every gate transition, story dispatch, story merge, escalation, and when approaching context limits.
+The session manifest must be kept current. Update it at every gate transition, story dispatch, story merge, escalation, and when approaching context limits.
 
 > See `scram-session` skill for the full state update event table and context limit recovery procedures.
 
