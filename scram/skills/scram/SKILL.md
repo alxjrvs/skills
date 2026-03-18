@@ -106,7 +106,9 @@ integration_branch: scram/<feature-name>
 workspace: <absolute SCRAM_WORKSPACE path>
 current_gate: G0 | G1 | G2 | G3 | streams | G4 | G5 | complete
 run_type: code | docs | mixed
-retrospective: true | false
+retrospective: pending | true | false
+prior_brainstorm: <absolute path to brainstorm workspace, or "none">
+compressed_gates: <comma-separated list of skipped gates, e.g. "G1, G2", or "none">
 tracker: <tracker config or "none">
 created: <YYYY-MM-DD HH:MM:SS>
 updated: <YYYY-MM-DD HH:MM:SS>
@@ -227,9 +229,45 @@ If the user has not provided enough context, ask clarifying questions. Required:
 - **Features to implement** (with enough detail to document)
 - **Scope boundaries** (what is NOT included)
 
-### Ask About External Tracker and Retrospective
+### Check for Prior Scramstorm
 
-Use `AskUserQuestion` to gather setup preferences:
+Use `AskUserQuestion` to determine if this session originated from a brainstorm:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "Did this work come from a prior scramstorm?"
+      header: "Scramstorm Handoff"
+      options:
+        - label: "Yes"
+          description: "Import brainstorm results — may allow skipping G1/G2"
+        - label: "No"
+          description: "Start fresh — normal G0 flow"
+      multiSelect: false
+```
+
+**If yes**, follow this numbered handoff processing sequence exactly:
+
+1. **Read manifest** — Ask the user for the brainstorm workspace path (or scan `~/.scram/brainstorm--$(basename "$PWD")--*` for recent workspaces). Read `handoff.md` from the brainstorm workspace.
+2. **Display gate eligibility** — Show the user which gates the brainstorm marked as skippable:
+   ```
+   Scramstorm handoff detected:
+     Workspace: <brainstorm_workspace>
+     Winning option: <winning_option or "exploration (no single winner)">
+     G1 (ADRs) skip eligible: <yes/no>
+     G2 (Docs) skip eligible: <yes/no>
+     Briefs available: <count>
+   ```
+3. **Confirm each skip** — For each eligible gate, use `AskUserQuestion` to confirm the skip. Do not auto-skip; the user must approve each gate compression individually.
+4. **Copy stub briefs** — If the manifest lists briefs, copy them into `SCRAM_WORKSPACE/briefs/`. These serve as starting points for G3 story breakdown — devs refine them, not rewrite from scratch.
+5. **Set current_gate** — Advance `current_gate` in `session.md` to the first non-skipped gate.
+6. **Record in session.md** — Add `prior_brainstorm` and `compressed_gates` to the session manifest frontmatter (see Session Manifest format below).
+
+**If no**, continue with normal G0 flow.
+
+### Ask About External Tracker
+
+Use `AskUserQuestion` to gather tracker preference:
 
 ```
 AskUserQuestion:
@@ -246,19 +284,9 @@ AskUserQuestion:
         - label: "Jira"
           description: "Sync stories to a Jira board"
       multiSelect: false
-    - question: "Would you like a team retrospective at the end?"
-      header: "Retro"
-      options:
-        - label: "Yes (Recommended)"
-          description: "Maintainers review how the run went and suggest SCRAM improvements"
-        - label: "No"
-          description: "Skip the retrospective"
-      multiSelect: false
 ```
 
 If tracker is selected, ask for the project/board reference. If tracker tools aren't available (no `gh` CLI, no MCP), warn the user and fall back to manual tracking suggestions.
-
-Record the retrospective answer. If yes, G5 runs after G4.
 
 ### Assess Session Tier
 
@@ -514,11 +542,30 @@ The maintainers stay alive as persistent teammates for the entire stream phase (
 
 ### Emergency Halt
 
-If the integration branch breaks after a merge (tests fail), the orchestrator writes a `HALT` file to the SCRAM workspace:
+If the integration branch breaks after a merge (tests fail), the orchestrator writes a `HALT` file and immediately notifies the user:
+
 ```bash
 echo "Tests failed after merge of <story-id> at $(date)" > "$SCRAM_WORKSPACE/HALT"
 ```
-Every dispatch path checks for this file before firing an Agent call. Do NOT dispatch further dev agents while `HALT` exists. Once the integration branch is fixed, remove the file and resume.
+
+Then present the failure to the user with `AskUserQuestion`:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "Integration branch is broken after merging <story-id>. How should we proceed?"
+      header: "Emergency Halt"
+      options:
+        - label: "Revert the merge"
+          description: "Revert the failing commit and redispatch the story"
+        - label: "Apply a patch"
+          description: "I will provide a fix to apply on the integration branch"
+        - label: "Skip this story"
+          description: "Revert and remove the story from the backlog"
+      multiSelect: false
+```
+
+Every dispatch path checks for the `HALT` file before firing an Agent call. Do NOT dispatch further dev agents while `HALT` exists. Once the integration branch is fixed and the user's chosen resolution is applied, remove the file and resume.
 
 ### Mid-Stream Failure Recovery
 
@@ -536,10 +583,14 @@ If a maintainer's session dies mid-stream (context exhaustion, crash):
 
 ```
 IMPORTANT: Before starting any work, run:
+  ${CLAUDE_PLUGIN_ROOT}/scripts/worktree-init.sh scram/<feature-name> <story-slug>
+This verifies worktree isolation and creates the story branch from the integration branch.
+If the script is unavailable, run manually:
   git checkout scram/<feature-name>
   git checkout -b scram/<feature-name>/<story-slug>
-This ensures your worktree branches from the integration branch, not main.
 ```
+
+The `worktree-init.sh` script enforces isolation mechanically — it verifies the agent is in a worktree (not the main repo), confirms the worktree is based on the integration branch, creates the story branch, and verifies HEAD. It exits non-zero with a clear error on any check failure, preventing agents from committing to the wrong branch.
 
 Each agent receives in its dispatch prompt:
 - Story ID and description with acceptance criteria
@@ -577,6 +628,20 @@ Agents report failures with a structured reason. Maintainers use the reason to d
 | `pre_flight_failure` | Investigate integration branch health before redispatching |
 
 Default escalation path for capability failures: sonnet → opus. **If the same story fails review twice for the same root cause**, the orchestrator must write an escalation entry in `session.md`, diagnose the pattern, and adjust agent instructions before retrying. Do not blindly redispatch. If the same story fails twice at the same tier, maintainers escalate to user.
+
+**Required escalation brief format:** When escalating to the user, use this structure so the user gets an actionable question, not a vague status update:
+
+```markdown
+## Escalation: <title>
+
+**Attempted:** <what was tried>
+**Failed because:** <root cause>
+**Decision needed:** <closed question with specific options>
+**Options:**
+1. <option A> — <consequence>
+2. <option B> — <consequence>
+3. <option C> — <consequence>
+```
 
 ### Merge Stream
 
@@ -619,9 +684,26 @@ After all three streams complete:
 5. Verify docs and ADRs accurately reflect the final implementation
 6. Verify `SCRAM_WORKSPACE/backlog.md` shows all stories as `merged`
 7. Close remaining tracker issues (if configured), add summary comment
-8. Merge or PR the integration branch to `main`
-9. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
-10. If no retrospective: remove the `scram-session-*` memory reference (run is done)
+8. Ask the user about a retrospective now that they have seen the completed work:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "All stories are merged and reviewed. Would you like a team retrospective?"
+      header: "Retrospective"
+      options:
+        - label: "Yes (Recommended)"
+          description: "Maintainers review how the run went and suggest SCRAM improvements"
+        - label: "No"
+          description: "Skip the retrospective"
+      multiSelect: false
+```
+
+Record the answer. If yes, G5 runs after G4.
+
+9. Merge or PR the integration branch to `main`
+10. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
+11. If no retrospective: remove the `scram-session-*` memory reference (run is done)
 
 If issues found, add fix stories to the backlog and redispatch.
 
