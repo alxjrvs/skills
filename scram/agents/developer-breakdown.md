@@ -35,6 +35,8 @@ Each story gets a complexity tag that determines the agent model:
 
 ## Context Brief Format
 
+> Canonical format reference: `scram/skills/scram-brief/SKILL.md`. The format below is the authoritative inline copy for agent dispatch.
+
 For each story, write a brief to `SCRAM_WORKSPACE/briefs/<story-slug>.md` containing:
 
 ```markdown

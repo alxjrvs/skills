@@ -294,100 +294,15 @@ Each documented feature/behavior/API surface becomes one or more stories. Storie
 
 **If in doubt, split.**
 
-### Tag Complexity
-
-Each story gets a complexity tag that determines the agent model:
-
-| Complexity | Model | When |
-|-----------|-------|------|
-| Simple | sonnet | Clear pattern, few files, context brief covers everything |
-| Moderate | sonnet | Some judgment needed, moderate file scope |
-| Complex | opus | Cross-cutting, architectural judgment, ambiguous requirements |
-
-### Tag Resolution Mode
-
-Each story gets a resolution mode:
-
-| Mode | When | Handling |
-|------|------|----------|
-| `commit` | Story produces code/doc changes | Normal dev dispatch with worktree isolation |
-| `verify-only` | Story requires only verifying acceptance criteria are already met | Orchestrator handles directly — no dev dispatch, no worktree. Check criteria, update tracker, record in backlog with no commit hash. |
-| `conditional` | Story may or may not require changes depending on current state | Dev dispatched to investigate; may resolve as `verify-only` if criteria already met |
-
-### Tag UI/UX Stories (when designer is active)
-
-If a designer is on the team, flag any story that touches user-facing elements (GUI, TUI, CLI output, interactive prompts). These stories require designer approval during the merge stream in addition to standard maintainer approval(s). The designer also contributes design context to these stories' context briefs.
-
 ### Write Context Briefs (as files)
 
-Dispatch `scram:developer-breakdown` without worktree isolation — Tier 2 dispatch. The agent reads docs-as-spec and writes context briefs to `SCRAM_WORKSPACE/briefs/`. No branch is created.
+Dispatch `scram:developer-breakdown` (Tier 2, no worktree). The agent reads docs-as-spec and writes context briefs to `SCRAM_WORKSPACE/briefs/`. No branch is created.
 
-`scram:developer-breakdown` writes a context brief **file** for each story at `SCRAM_WORKSPACE/briefs/<story-slug>.md`:
-
-```markdown
-# <Story Title>
-
-## Story
-<description and acceptance criteria>
-
-## Doc Section
-<reference to the approved doc section this story maps to>
-
-## Budget
-`tight | standard | open`
-
-## Scope Fence
-<For contested-file stories: explicit declaration of which sections/files are OUT OF SCOPE. Leave blank if no contested files.>
-
-## Files
-- <file path> — <why it's relevant>
-
-## Locators
-Use content-stable grep anchors to identify locations in files. **Never use line numbers** — they go stale when earlier stories modify the same files.
-- Good: "Find the sentence beginning with 'X' and change to..."
-- Bad: "Line 42 of foo.ts"
-
-## Types & Interfaces
-- <key type/interface signatures>
-
-## Dependencies
-### Code dependencies
-- <stories this depends on, and whether they're merged>
-
-### Structural dependencies
-- <brief-to-brief format dependencies; merge order constraints>
-
-## Hook Constraint Check
-Can this story pass pre-commit hooks independently? Yes / No — <explain if No>
-
-## Architecture
-<summary of relevant architecture and relevant ADRs from G1>
-
-## Checklist
-<Story-specific checklist items. Populate only the checklist(s) relevant to this story's domain.
-If no special checklist applies, write "none". Available categories:
-- Shared-state, Call-boundary, Async/lifecycle, Test-update (see developer-breakdown agent for item text)>
-
-## UI/UX Context (if tagged)
-<relevant design ADRs, existing UI patterns, component references>
-
-## Deliverables
-- [ ] <file> — <specific change>
-- [ ] <file> — <specific change>
-```
-
-**Brief review rule (G3):** Reject briefs that contain line-number locators. They must use content-anchored references only.
-
-These files live in the SCRAM workspace and are read by dev agents via absolute path.
+> See `scram-brief` skill for context brief format, complexity tagging, resolution modes, and backlog construction.
 
 ### Prioritize
 
-| Priority | Meaning |
-|----------|---------|
-| P0 — Critical | Blocks other stories, touches shared interfaces/types; do first |
-| P1 — High | Core feature work; pick next |
-| P2 — Normal | Independent work, no blockers |
-| P3 — Low | Nice-to-have, polish, edge cases |
+Priority levels: P0 (blocks others), P1 (core), P2 (independent), P3 (polish). See `scram-brief` for the full prioritization table.
 
 ### Create Tracker Issues (if configured)
 
@@ -395,22 +310,7 @@ If a tracker was provided in G0, create issues for each story (or link existing 
 
 ### Write the Backlog File
 
-Write the backlog to `SCRAM_WORKSPACE/backlog.md`:
-
-```markdown
-# SCRAM Backlog — <feature-name>
-
-| # | Story | Priority | Complexity | Resolution | Depends On | UI/UX | Status | Agent | Commit |
-|---|-------|----------|------------|------------|------------|-------|--------|-------|--------|
-| 1 | Story A | P0 | simple | commit | — | no | pending | — | — |
-| 2 | Story B | P0 | complex | commit | — | no | pending | — | — |
-| 3 | Story C | P1 | moderate | commit | 1, 2 | yes | pending | — | — |
-| 4 | Story D | P2 | simple | verify-only | — | no | pending | — | — |
-```
-
-**Status values:** `pending` → `in_progress` → `in_review` → `merged` | `failed` → `escalated` → `in_progress`
-
-Maintainers update this file as stories progress.
+Write the backlog to `SCRAM_WORKSPACE/backlog.md`. See `scram-brief` for the full backlog file format and status value definitions.
 
 ### Present the Backlog
 
