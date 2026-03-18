@@ -221,8 +221,6 @@ Resume an existing session, or start fresh?
 
 Both maintainers run environment checks and create the integration branch per their agent definitions. The orchestrator creates the SCRAM workspace using `scram-init.sh` and writes the session manifest.
 
-If ANY step fails, **stop and report to the user**. Do not proceed with a broken baseline.
-
 ### Gather Requirements
 
 If the user has not provided enough context, ask clarifying questions. Required:
