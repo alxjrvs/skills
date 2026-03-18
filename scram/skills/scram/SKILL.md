@@ -106,7 +106,7 @@ integration_branch: scram/<feature-name>
 workspace: <absolute SCRAM_WORKSPACE path>
 current_gate: G0 | G1 | G2 | G3 | streams | G4 | G5 | complete
 run_type: code | docs | mixed
-retrospective: true | false
+retrospective: pending | true | false
 prior_brainstorm: <absolute path to brainstorm workspace, or "none">
 compressed_gates: <comma-separated list of skipped gates, e.g. "G1, G2", or "none">
 tracker: <tracker config or "none">
@@ -265,9 +265,9 @@ AskUserQuestion:
 
 **If no**, continue with normal G0 flow.
 
-### Ask About External Tracker and Retrospective
+### Ask About External Tracker
 
-Use `AskUserQuestion` to gather setup preferences:
+Use `AskUserQuestion` to gather tracker preference:
 
 ```
 AskUserQuestion:
@@ -284,19 +284,9 @@ AskUserQuestion:
         - label: "Jira"
           description: "Sync stories to a Jira board"
       multiSelect: false
-    - question: "Would you like a team retrospective at the end?"
-      header: "Retro"
-      options:
-        - label: "Yes (Recommended)"
-          description: "Maintainers review how the run went and suggest SCRAM improvements"
-        - label: "No"
-          description: "Skip the retrospective"
-      multiSelect: false
 ```
 
 If tracker is selected, ask for the project/board reference. If tracker tools aren't available (no `gh` CLI, no MCP), warn the user and fall back to manual tracking suggestions.
-
-Record the retrospective answer. If yes, G5 runs after G4.
 
 ### Assess Session Tier
 
@@ -552,11 +542,30 @@ The maintainers stay alive as persistent teammates for the entire stream phase (
 
 ### Emergency Halt
 
-If the integration branch breaks after a merge (tests fail), the orchestrator writes a `HALT` file to the SCRAM workspace:
+If the integration branch breaks after a merge (tests fail), the orchestrator writes a `HALT` file and immediately notifies the user:
+
 ```bash
 echo "Tests failed after merge of <story-id> at $(date)" > "$SCRAM_WORKSPACE/HALT"
 ```
-Every dispatch path checks for this file before firing an Agent call. Do NOT dispatch further dev agents while `HALT` exists. Once the integration branch is fixed, remove the file and resume.
+
+Then present the failure to the user with `AskUserQuestion`:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "Integration branch is broken after merging <story-id>. How should we proceed?"
+      header: "Emergency Halt"
+      options:
+        - label: "Revert the merge"
+          description: "Revert the failing commit and redispatch the story"
+        - label: "Apply a patch"
+          description: "I will provide a fix to apply on the integration branch"
+        - label: "Skip this story"
+          description: "Revert and remove the story from the backlog"
+      multiSelect: false
+```
+
+Every dispatch path checks for the `HALT` file before firing an Agent call. Do NOT dispatch further dev agents while `HALT` exists. Once the integration branch is fixed and the user's chosen resolution is applied, remove the file and resume.
 
 ### Mid-Stream Failure Recovery
 
@@ -616,6 +625,20 @@ Agents report failures with a structured reason. Maintainers use the reason to d
 
 Default escalation path for capability failures: sonnet → opus. **If the same story fails review twice for the same root cause**, the orchestrator must write an escalation entry in `session.md`, diagnose the pattern, and adjust agent instructions before retrying. Do not blindly redispatch. If the same story fails twice at the same tier, maintainers escalate to user.
 
+**Required escalation brief format:** When escalating to the user, use this structure so the user gets an actionable question, not a vague status update:
+
+```markdown
+## Escalation: <title>
+
+**Attempted:** <what was tried>
+**Failed because:** <root cause>
+**Decision needed:** <closed question with specific options>
+**Options:**
+1. <option A> — <consequence>
+2. <option B> — <consequence>
+3. <option C> — <consequence>
+```
+
 ### Merge Stream
 
 Both maintainers are persistent teammates. As each dev agent completes:
@@ -657,9 +680,26 @@ After all three streams complete:
 5. Verify docs and ADRs accurately reflect the final implementation
 6. Verify `SCRAM_WORKSPACE/backlog.md` shows all stories as `merged`
 7. Close remaining tracker issues (if configured), add summary comment
-8. Merge or PR the integration branch to `main`
-9. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
-10. If no retrospective: remove the `scram-session-*` memory reference (run is done)
+8. Ask the user about a retrospective now that they have seen the completed work:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "All stories are merged and reviewed. Would you like a team retrospective?"
+      header: "Retrospective"
+      options:
+        - label: "Yes (Recommended)"
+          description: "Maintainers review how the run went and suggest SCRAM improvements"
+        - label: "No"
+          description: "Skip the retrospective"
+      multiSelect: false
+```
+
+Record the answer. If yes, G5 runs after G4.
+
+9. Merge or PR the integration branch to `main`
+10. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
+11. If no retrospective: remove the `scram-session-*` memory reference (run is done)
 
 If issues found, add fix stories to the backlog and redispatch.
 
