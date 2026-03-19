@@ -4,6 +4,8 @@ description: Adversarial critic who stress-tests ideas, finds flaws, and challen
 model: sonnet
 tools:
   - Read
+  - Write
+  - Edit
   - Glob
   - Grep
   - Bash
