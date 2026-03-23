@@ -24,16 +24,16 @@ Task 4 (enhance existing scripts) ◄──┴───┘    │
 Task 5 (agent rewrites) ◄────────────────────┘
 Task 6 (scram-brief trim) ◄──────────────────┘
 Task 7 (scramstorm trim) ◄───────────────────┘
+                                              │
+Task 8 (scram-sprint SKILL.md) ◄──── 1,4,5 ──┘
+Task 9 (scram-solo SKILL.md) ◄────── 1,5
                                      │
-Task 8 (scram-sprint SKILL.md) ◄────┤
-Task 9 (scram-solo SKILL.md) ◄──────┤
-                                     │
-Task 10 (scram dispatcher) ◄────────┘
-Task 11 (hooks.json + ADRs + version bump)
-Task 12 (validate + cleanup)
+Task 10 (scram dispatcher) ◄── 8,9 ──┘
+Task 11 (ADRs + version bump) ◄── all prior
+Task 12 (validate + cleanup) ◄── 11
 ```
 
-Tasks 1-3 are independent and can run in parallel. Tasks 5-7 depend on 1. Task 4 depends on 2+3. Tasks 8-9 depend on 4+5. Task 10 depends on 8+9. Tasks 11-12 are sequential finalization.
+Tasks 1-3 are independent and can run in parallel. Tasks 5-7 depend on 1. Task 4 depends on 2+3. Task 8 (sprint) depends on 1+4+5. Task 9 (solo) depends on 1+5 only (solo does not use state machine scripts). Task 10 depends on 8+9. Tasks 11-12 are sequential finalization.
 
 ---
 
@@ -53,6 +53,7 @@ Tasks 1-3 are independent and can run in parallel. Tasks 5-7 depend on 1. Task 4
 - Source: `scram/agents/developer-impl.md` (TDD phases, report format)
 - Source: `scram/agents/doc-specialist.md` (report format)
 - Source: `scram/skills/scram-brief/SKILL.md` (brief template)
+- Source: `scram/agents/developer-reviewer.md` (report format)
 - Source: `scram/skills/scramstorm/SKILL.md` (output formats, persona table)
 
 Extract shared content from source files into refs/ files. Each ref file is a standalone reference document — no frontmatter, no skill metadata. Just the procedure/template/checklist.
@@ -262,7 +263,13 @@ case "$1" in
 esac
 ```
 
-The script parses the markdown table in `backlog.md`. Status column is the 8th pipe-delimited field. Updates use `sed` to replace the status value in-place.
+The script parses the markdown table in `backlog.md`. The table format is defined in `scram/skills/scram-brief/SKILL.md` § Backlog File Format:
+
+```
+| # | Story | Priority | Complexity | Resolution | Depends On | UI/UX | Status | Agent | Commit |
+```
+
+Status is the 8th pipe-delimited field. Updates use `sed` to replace the status value in-place. Test fixtures should use this exact table format.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -428,7 +435,11 @@ Keep: role description, story sizing, complexity tagging, checklist categories, 
 
 Target: ~120 lines.
 
-- [ ] **Step 5: Trim `doc-specialist.md`**
+- [ ] **Step 5: Update `developer-reviewer.md`**
+
+Replace inline report template with pointer to `refs/report-formats.md`. This agent is already lean (~53 lines) — only the report template moves.
+
+- [ ] **Step 6: Trim `doc-specialist.md`**
 
 Remove:
 - Report Format template → replace with pointer to report-formats.md
@@ -437,7 +448,7 @@ Keep everything else (already lean).
 
 Target: ~110 lines.
 
-- [ ] **Step 6: Verify no broken references**
+- [ ] **Step 7: Verify no broken references**
 
 Search all agent files for any remaining references to content that was moved:
 ```bash
@@ -445,7 +456,7 @@ grep -rn "Commit Format\|Conflict Resolution\|Tracker Updates" scram/agents/
 ```
 Should return only pointer lines, not inline content.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add scram/agents/
@@ -548,30 +559,54 @@ user_invocable: true
 ---
 ```
 
-- [ ] **Step 3: Write the skill body**
+- [ ] **Step 3: Write the skill body — section by section**
 
-Structure (~300 lines):
+The sprint skill is organized by gate. For each section below, the keep/cut/add lists are explicit. Read the corresponding v7 section and apply the delta.
 
-1. **Header** — You are the Orchestrator. Sprint uses sequential gates and concurrent streams.
-2. **Team Composition** — same table as v7, same roles and naming convention. Remove tier descriptions.
-3. **Integration Branch** — same as v7.
-4. **SCRAM Workspace** — reference scram-session skill. Add: `Run scram-state.sh init $SCRAM_WORKSPACE at workspace creation.`
-5. **G0: Environment Check** — same preconditions (stash check, env check). Remove: session discovery (moved to dispatcher), scramstorm handoff (moved to dispatcher), tier assessment (eliminated). Add: gate-omit questions ("Does this work need ADRs? Docs? Are stories defined?"). Add: `scram-state.sh advance $SCRAM_WORKSPACE G0`.
-6. **G1: ADRs (opt-in)** — same as v7 but shorter. Add state advance.
-7. **G2: Docs (opt-in)** — same as v7 but shorter. Add state advance.
-8. **G3: Story Breakdown** — same as v7. Add single-maintainer mode decision. Add: `scram-state.sh advance $SCRAM_WORKSPACE streams`. Reference scram-backlog.sh for dispatch validation.
-9. **Concurrent Streams** — same structure (dev stream, merge stream, doc refinement). Remove inline merge mechanics (reference refs/). Add: `Use scram-backlog.sh dispatchable to get dispatch list.` Keep: emergency halt, mid-stream failure recovery, escalation reference, cherry-pick fallback with bundled diff prohibition, post-G4 hotfix protocol.
-10. **G4: Final Review** — same as v7. Add state advance.
-11. **G5: Retrospective** — reference scram-retro skill.
-12. **Constraints** — consolidated list, no duplicates.
+**Section 1: Header + Team Composition (~30 lines)**
+- KEEP: "You are the Orchestrator" role definition, team composition table (all 10 roles), agent naming convention, `subagent_type` prefix note, docs-only runs note
+- CUT: All tier descriptions (Full/Lightweight/Quick/Nano), tier assessment criteria, "Process discipline" paragraph about degraded SCRAM
+- ADD: One-line note: "Sprint is for multi-story work. For single-story work, use `/scram-solo`."
 
-Key removals from v7 → sprint:
-- All tier logic (Full/Lightweight/Quick/Nano) and tier assessment
-- Session discovery and resume (moved to dispatcher)
-- Scramstorm handoff processing (moved to dispatcher)
-- Gate-skip criteria table (replaced by gate-omit)
-- Inline TDD discipline (reference refs/)
-- Inline merge mechanics (reference refs/)
+**Section 2: Integration Branch + Workspace (~15 lines)**
+- KEEP: Branch model (`scram/<feature-name>`), workspace reference to scram-session skill
+- CUT: Nothing
+- ADD: `Run scram-state.sh init $SCRAM_WORKSPACE` at workspace creation. `Run scram-init.sh` for directory structure.
+
+**Section 3: G0 Environment Check (~50 lines)**
+- KEEP: Stash check precondition, scram_version read, environment checks, gate-boundary events, AskUserQuestion for tracker, team roster presentation and confirmation
+- CUT: Session discovery (moved to dispatcher), scramstorm handoff (moved to dispatcher), tier assessment (eliminated), gate-skip criteria table (replaced by gate-omit)
+- ADD: Gate-omit questions via AskUserQuestion: "Does this work need new ADRs? New user-facing docs? Are stories already defined?" Only include gates with work to do. Call `scram-state.sh advance $SCRAM_WORKSPACE G0` at gate completion.
+
+**Section 4: G1 ADRs + G2 Docs (~20 lines each, opt-in)**
+- KEEP: ADR dispatch and review process, doc dispatch and review process
+- CUT: Detailed review criteria (agents read refs/review-checklist.md)
+- ADD: Both gates marked as opt-in (included only if G0 determined they have work). State advance calls at completion. Gates omitted via `scram-state.sh advance --skip`.
+
+**Section 5: G3 Story Breakdown (~30 lines)**
+- KEEP: Story derivation rules, brief authoring via scram:developer-breakdown, prioritization, backlog creation, tracker issue creation, backlog presentation with AskUserQuestion
+- CUT: Inline brief format (agents read refs/brief-template.md)
+- ADD: Single-maintainer mode decision after stories sized (≤3 simple → Metron only; 4+ or moderate/complex → full team). State advance. Reference scram-backlog.sh for backlog management.
+
+**Section 6: Concurrent Streams (~80 lines)**
+- KEEP: Maintainer team creation (TeamCreate), dev stream dispatch rules (P0 wave, max 5 concurrent, dependency checks, contested files, hook constraint audit), emergency halt + HALT file, mid-stream failure recovery, escalation reference, cherry-pick fallback with bundled diff prohibition, post-G4 hotfix protocol, doc refinement stream with deviation taxonomy, thin orchestrator discipline
+- CUT: Inline merge mechanics (agents read refs/merge-protocol.md), inline TDD rules (agents read refs/tdd-discipline.md), inline review checklist items
+- ADD: `Use scram-backlog.sh dispatchable to get the dispatch list instead of manual backlog parsing.` `Use scram-backlog.sh transition to update story status.` Docs-only run mode note: when `run_type: docs`, code maintainer omitted, merge maintainer gets sole authority, dev reports use "Verification method" instead of "TDD discipline." External service staging pattern: write to local files, review, then push.
+
+**Section 7: G4 Final Review (~30 lines)**
+- KEEP: Team shutdown, commit review, test suite, doc verification, backlog verification, stash cleanup, retro question, merge/PR to main, follow-up story sweep, workspace cleanup
+- CUT: Nothing significant
+- ADD: State advance. Compressed gate tracking note.
+
+**Section 8: G5 Retrospective (~5 lines)**
+- KEEP: Reference to scram-retro skill
+- CUT: Nothing
+- ADD: State advance to complete.
+
+**Section 9: Constraints (~15 lines)**
+- KEEP: Worktree isolation, TDD, no hook skipping, new commits only, one commit per story, workspace outside repo, post-merge fixes through lifecycle, G2 doc specialist requirement, external service staging
+- CUT: Duplicates of constraints that appear in agent files
+- ADD: Bounded fixup exception (from recent retro sweep)
 
 - [ ] **Step 4: Verify all preserved features are present**
 
