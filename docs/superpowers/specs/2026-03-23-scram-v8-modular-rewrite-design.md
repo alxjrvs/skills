@@ -115,11 +115,17 @@ SCRAM_WORKSPACE=$(mktemp -d)/scram-solo-<story-slug>
 mkdir -p "$SCRAM_WORKSPACE"
 ```
 
-This directory holds only the context brief file. No `session.md`, no `backlog.md`, no `events/`. The workspace is cleaned up after merge. This ensures all hooks that guard on `SCRAM_WORKSPACE` being set continue to function (halt-check, isolation-check, brief-lint).
+This directory holds only the context brief file. No `session.md`, no `backlog.md`, no `events/`. The solo orchestrator cleans up the workspace after the merge step completes: `rm -rf "$SCRAM_WORKSPACE"`. This ensures all hooks that guard on `SCRAM_WORKSPACE` being set continue to function (halt-check, isolation-check, brief-lint).
 
 ### Solo branch convention
 
-Solo uses `scram/solo/<story-slug>` branch naming. The `worktree-init.sh` script accepts the integration branch as a parameter — for solo, this is the current branch (e.g., `main`). The script does not derive branch conventions from context; it receives them.
+Solo bypasses `worktree-init.sh` entirely. The solo orchestrator creates the worktree and branch directly:
+
+```bash
+git worktree add .claude/worktrees/<story-slug> -b scram/solo/<story-slug>
+```
+
+This avoids the sprint-specific branch derivation logic in `worktree-init.sh` (which expects `scram/<feature>` as the integration branch and derives `scram/<feature>/<story-slug>`). Solo's branch convention is simpler — no feature namespace, just `scram/solo/<slug>`. The isolation-check.sh PostToolUse hook still fires and validates the worktree.
 
 ### What's eliminated (vs. today's Nano/Quick)
 
@@ -322,7 +328,7 @@ Out-of-order `advance` calls exit 1 with an error message explaining the valid n
 }
 ```
 
-The hook configuration is unchanged from v7. All new enforcement logic is embedded in the existing scripts, not as new hook entries. This ensures backward compatibility during transitional periods.
+The hook configuration is unchanged from v7 except for a timeout bump on `halt-check.sh` (5 → 10) to accommodate the additional `scram-state.sh` call. All new enforcement logic is embedded in the existing scripts, not as new hook entries.
 
 ### 6b. `scram-backlog.sh` — Story state tracking
 
@@ -351,7 +357,7 @@ Returns a newline-separated list of dispatchable story slugs, or empty if none.
 |--------|-------------|
 | `halt-check.sh` | Also calls `scram-state.sh` — blocks dispatch if not in `streams` phase |
 | `isolation-check.sh` | Also calls `scram-backlog.sh transition <story> in_progress` on successful isolation |
-| `pre-merge-check.sh` | Also calls `scram-backlog.sh status` to verify story is `in_review` |
+| `pre-merge-check.sh` | Also calls `scram-backlog.sh status` to verify story is `in_review`. Note: this script is called explicitly by the merge-maintainer before merging (per its agent definition), not via hooks.json. |
 | `session-checkpoint.sh` | Also flushes `retro/in-flight.md` with `[FLUSH — checkpoint]` timestamp |
 
 ### 6d. Failure class coverage
