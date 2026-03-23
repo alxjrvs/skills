@@ -61,9 +61,13 @@ A thin router that:
 
 | Signal | Route |
 |--------|-------|
-| 1 story, ≤5 files, no shared state | `/scram-solo` |
-| 2+ stories, shared packages, or new abstractions | `/scram-sprint` |
+| 1 story, ≤5 files, no shared state changes | `/scram-solo` |
+| Any shared state/package changes (regardless of story count) | `/scram-sprint` |
+| 2+ stories | `/scram-sprint` |
+| New abstractions or architectural decisions needed | `/scram-sprint` |
 | User explicitly requests brainstorm | `/scramstorm` |
+
+Rules are evaluated top-to-bottom. Any shared state change forces sprint even for a single story — the integration branch and dual-review are needed to protect shared surfaces.
 
 5. **Confirms** — shows routing decision with rationale, asks user to approve or override
 6. **Invokes** the target skill
@@ -103,25 +107,41 @@ Assess → Brief → Implement → Review → Merge
 
 5. **Merge** — Metron merges to the source branch. Tests must pass. Done.
 
+### Solo workspace
+
+Solo creates a **minimal temp workspace** for hook compatibility:
+```bash
+SCRAM_WORKSPACE=$(mktemp -d)/scram-solo-<story-slug>
+mkdir -p "$SCRAM_WORKSPACE"
+```
+
+This directory holds only the context brief file. No `session.md`, no `backlog.md`, no `events/`. The workspace is cleaned up after merge. This ensures all hooks that guard on `SCRAM_WORKSPACE` being set continue to function (halt-check, isolation-check, brief-lint).
+
+### Solo branch convention
+
+Solo uses `scram/solo/<story-slug>` branch naming. The `worktree-init.sh` script accepts the integration branch as a parameter — for solo, this is the current branch (e.g., `main`). The script does not derive branch conventions from context; it receives them.
+
 ### What's eliminated (vs. today's Nano/Quick)
 
 - No G0-G4 gate ceremony
 - No integration branch (branch directly from current)
-- No `~/.scram/` workspace directory
+- No full `~/.scram/` workspace (only a temp dir for hook compat)
 - No session manifest or backlog file
-- No team creation/teardown
+- No persistent team (agents dispatched as one-shots via `Agent` tool, no `TeamCreate`)
 - No doc specialist dispatch
 - No ADR gate
 - No retro
+- No stash checks (no teardown that could interact with stashes)
+- No external tracker integration
 
 ### What's preserved
 
 - Worktree isolation (non-negotiable)
 - TDD discipline (via `refs/tdd-discipline.md`)
 - Context brief (agents need structured input)
-- Code review (always required)
+- Code review (always required — a SCRAM run without review is not a SCRAM run)
 - Story Report format (structured output via `refs/report-formats.md`)
-- Hook enforcement (halt-check, isolation-check, brief-lint)
+- Hook enforcement (halt-check, isolation-check, brief-lint — all function via solo workspace)
 
 ### Escape hatch
 
@@ -183,16 +203,37 @@ Gate transitions and story status are tracked by scripts, not prose. See Compone
 - Doc refinement stream with deviation taxonomy
 - Follow-up story sweep before G4 close
 - G5 retrospective (optional)
+- Docs-only run mode (`run_type: docs`) — code maintainer omitted, merge maintainer gets sole approval, dev reports use "Verification method" instead of "TDD discipline"
+- External service staging pattern — write proposed content to local files, review, then push to external service
+- Stash checks at G0 and G4
+- AskUserQuestion interactions for tracker, team roster, backlog approval
 
 ## Component 4: `/scramstorm` — Brainstorm Flow
 
 **File:** `scram/skills/scramstorm/SKILL.md` (~400 lines, down from 555)
 **User-invocable:** Yes
 
-### Changes
+### What stays in the skill file (~400 lines)
 
-- **Output format templates** (~120 lines) extracted to `refs/scramstorm-output-formats.md`, read during Phase 6 only
-- **Personality table and debate roles** (~40 lines) extracted to `refs/scramstorm-personas.md`, referenced in dispatch prompts
+- Phase flow overview (Frame → Research → Tickets → Vote → Discuss → Present)
+- Team composition table (core + optional specialists) — names and `subagent_type` mappings stay inline (personality descriptions move to refs/)
+- Phase 1: Frame (problem.md template with Known Friction, Known Divergences, Desired Outcome)
+- Phase 1.5: Prior Retro Scan
+- Phase 2: Research (dispatch instructions, evidence pass, scoped exploration, open questions resolution, context integrity check)
+- Phase 3: Tickets (structured ticket template, state contract requirement, pre-vote processing)
+- Phase 4: Vote (voting mechanics, disposition field, orphan check)
+- Phase 5: Discuss (steward triage, unanimous fast-path with brief generation, discussion format, steward synthesis)
+- Phase 6: Present — dispatch instructions and handoff manifest format stay inline; output format templates move to refs/
+- Retrospective section
+- Constraints
+
+### What's extracted to refs/
+
+- **Output format templates** (~120 lines) → `refs/scramstorm-output-formats.md`, read during Phase 6 only
+- **Personality table and debate roles** (~40 lines) → `refs/scramstorm-personas.md`, referenced in dispatch prompts
+
+### Other changes
+
 - **All retro improvements already applied** (Known Friction, Known Divergences, Prior Retro Scan, Context Integrity Check, structured ticket template, 3-pass pre-vote processing, vote disposition, orphan check, unanimous fast-path)
 - **Handoff** — the new `/scram` dispatcher natively checks for handoff manifests, making the transition a first-class routing path
 
@@ -241,9 +282,47 @@ scram-state.sh require <workspace> <gate>          # Exit 0 if currently AT gate
 
 Valid transitions (hardcoded): `G0 → G1 → G2 → G3 → streams → G4 → G5 → complete`
 
+`streams` is a valid `current_gate` value in `session.md`. It represents the concurrent phase between G3 and G4. The state machine treats it as a gate for transition purposes even though it is a phase — this simplifies the model without loss of expressiveness.
+
 Out-of-order `advance` calls exit 1 with an error message explaining the valid next state. Skipped gates use `--skip` flag that records the omission in both `session.md` and `events/stream.log`.
 
-**Hook registration:** PreToolUse on Agent — before dispatching any agent during a sprint, the hook calls `scram-state.sh check` to verify the dispatch is valid for the current gate.
+**Hook integration:** State checking is embedded in the existing `halt-check.sh` script (not a separate hook entry). When `SCRAM_WORKSPACE` is set, `halt-check.sh` calls `scram-state.sh require streams` before allowing Agent dispatch during the streams phase. This keeps `hooks.json` simple — one PreToolUse Agent hook, not two.
+
+### Updated hooks.json
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/halt-check.sh", "timeout": 10 }]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/brief-lint.sh", "timeout": 5 }]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/merge-guard.sh", "timeout": 5 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/isolation-check.sh", "timeout": 10 }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/session-checkpoint.sh", "timeout": 5 }]
+      }
+    ]
+  }
+}
+```
+
+The hook configuration is unchanged from v7. All new enforcement logic is embedded in the existing scripts, not as new hook entries. This ensures backward compatibility during transitional periods.
 
 ### 6b. `scram-backlog.sh` — Story state tracking
 
@@ -284,7 +363,7 @@ Returns a newline-separated list of dispatchable story slugs, or empty if none.
 | Out-of-order gate operations | Prose ("gates are sequential") | `scram-state.sh` blocks invalid transitions |
 | Dispatching blocked stories | Prose ("check backlog status first") | `scram-backlog.sh dispatchable` returns only valid targets |
 | Lost in-flight observations | Prose ("flush before checkpoint") | `session-checkpoint.sh` auto-flushes in-flight.md |
-| Cross-story type drift | Prose logging instruction | `scram-backlog.sh transition merged` triggers type-drift scan |
+| Cross-story type drift | Prose logging instruction | `scram-backlog.sh transition merged` logs a `[type-drift]` entry to `retro/in-flight.md` listing the story slug and any shared types/schemas in the story's deliverables (parsed from the brief's `## Type Contracts` section). Maintainers review the accumulated log at wave boundaries — this is a reporting mechanism, not an automated scan. |
 
 **Principle:** If a failure has appeared in 2+ retros, it gets a script. Prose instructions are for judgment calls. Mechanical enforcement is for invariants.
 
@@ -403,6 +482,21 @@ scram/
 - Direct invocation of `/scram-solo` and `/scram-sprint` available for users who know what they want
 - Existing `~/.scram/` workspaces remain compatible (session manifest format unchanged)
 - All existing hooks continue to fire (new hooks are additive)
+
+## Deprecated/Removed Features
+
+Explicit accounting for v7 features that do not carry forward:
+
+| v7 Feature | v8 Fate | Rationale |
+|-----------|---------|-----------|
+| **Quick tier** (orchestrator handles directly, no dev dispatch) | Absorbed by `/scram-solo` | Solo always dispatches a dev agent — the "orchestrator verifies directly" pattern was unreliable and defeated the purpose of review. Solo is the lightweight path. |
+| **Nano tier** (≤2 files, `scram/nano/` branches, `--nano` workspace) | Absorbed by `/scram-solo` | The distinction between Nano and Quick was confusing and rarely used correctly. Solo handles all single-story work. |
+| **Lightweight tier** (≤3 stories, single maintainer) | Absorbed by sprint single-maintainer mode | Decided at G3 based on actual story sizing, not at G0 based on guesses. |
+| **Full tier** | Renamed to `/scram-sprint` | Same flow, leaner delivery. |
+| **`run_type: docs`** (docs-only mode) | Preserved in sprint | Sprint supports docs-only runs: code maintainer is omitted, merge maintainer gets sole approval authority, developer report replaces "TDD discipline" with "Verification method." This is a sprint configuration, not a separate tier. |
+| **External service staging pattern** | Preserved in sprint | Listed under sprint constraints: external service work uses the staging pattern (write to local files, review, then push). |
+| **Stash checks at G0/G4** | Sprint only | Solo has no teardown that interacts with stashes. Sprint preserves stash checks. |
+| **`AskUserQuestion` for tracker** | Sprint only | Solo doesn't integrate with external trackers. Sprint preserves tracker integration. |
 
 ## Non-Goals
 
