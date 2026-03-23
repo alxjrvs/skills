@@ -69,7 +69,7 @@ All sprint work happens on an integration branch, not `main`.
 
 ```
 scram/<feature-name>                    # integration branch (created at G0)
-scram/<feature-name>/<story-slug>       # per-agent worktree branches
+story/<feature-name>/<story-slug>       # per-agent worktree branches
 ```
 
 - Create the integration branch from `main` (or current branch) during G0
@@ -371,7 +371,7 @@ Do not embed brief contents, doc sections, or file contents inline in the dispat
 - Max **5 concurrent dev agents**
 - Each agent works **one story at a time**, completing all three TDD phases
 - **Do not dispatch a story whose `Depends On` column has unmerged stories** — `scram-backlog.sh dispatchable` enforces this
-- **Verify branch name convention before dispatch** — `scram/<feature>/<story-slug>`. If the branch already exists (prior rejected attempt), the dev agent creates a fresh branch from integration tip.
+- **Verify branch name convention before dispatch** — `story/<feature>/<story-slug>`. If the branch already exists (prior rejected attempt), the dev agent creates a fresh branch from integration tip.
 - **Stories with migrations serialize** — do not parallelize stories that include migrations touching the same tables
 - Use the model matching the story's complexity tag
 - Agents return a **structured Story Report** to the maintainers when complete

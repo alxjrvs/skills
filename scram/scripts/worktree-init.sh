@@ -19,7 +19,7 @@ STORY_SLUG="$2"
 
 # Derive feature name from integration branch (e.g., scram/my-feature -> my-feature)
 FEATURE_NAME="${INTEGRATION_BRANCH#scram/}"
-STORY_BRANCH="scram/${FEATURE_NAME}/${STORY_SLUG}"
+STORY_BRANCH="story/${FEATURE_NAME}/${STORY_SLUG}"
 
 WORKTREE_PATH="$(pwd)"
 
