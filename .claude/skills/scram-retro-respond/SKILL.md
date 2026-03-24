@@ -167,7 +167,7 @@ Count the addressed items from the triage map and route:
 
 Invoke `/scram-solo` for each addressed item **sequentially**. For each item:
 
-1. Frame the story description from the scramstorm's winning option for that item
+1. Write a context brief in the format expected by the SCRAM brief template (`${CLAUDE_PLUGIN_ROOT}/refs/brief-template.md`), derived from the scramstorm's winning option for that item
 2. Provide the target files identified by the scramstorm
 3. Let the solo flow run its normal interactive pipeline (Assess → Brief → Implement → Review → Merge)
 
