@@ -18,7 +18,7 @@ This is the **consumer** end of the retro lifecycle. `scram-retro` creates issue
 Phase 1: Observe    →  Query open retro issues from GitHub
 Phase 2: Scramstorm →  Investigate retro items with the SCRAM team
 Phase 3: Triage     →  Map scramstorm output to retro items, classify, determine semver
-Phase 4: Execute    →  Dispatch scram-solo or scram-sprint to implement fixes
+Phase 4: Execute    →  Dispatch scram-solo or scram to implement fixes
 Phase 5: Finalize   →  Bump version, commit, push
 Phase 6: Report     →  Comment on issues, close if fully addressed
 ```
@@ -59,8 +59,26 @@ Issue #38: retro(v7.1.0): 4 consensus changes from SCRAM run
   3. P0 quality gate is narrative (process, agreed)
   4. No runtime verification for non-test-suite projects (prompt_quality, agreed)
 
-Proceeding to scramstorm investigation.
 ```
+
+Use `AskUserQuestion` to confirm before proceeding:
+
+```
+AskUserQuestion:
+  questions:
+    - question: "These are the retro items to investigate. Proceed?"
+      header: "Retro Items"
+      options:
+        - label: "Proceed"
+          description: "Investigate all items via scramstorm"
+        - label: "Exclude some"
+          description: "I want to remove specific items before investigation"
+        - label: "Abort"
+          description: "Cancel the retro response"
+      multiSelect: false
+```
+
+If the user excludes items, remove them from the working set before proceeding.
 
 ---
 
@@ -107,7 +125,7 @@ triage:
       items:
         - id: <item number within issue>
           summary: "<item title>"
-          status: addressed | out-of-scope
+          status: addressed | out-of-scope | failed
           scramstorm_option: "<which scramstorm option was selected, if addressed>"
           reason: "<why out-of-scope, if deferred — null otherwise>"
   close_decisions:
@@ -129,6 +147,8 @@ For each retro item, check whether the scramstorm produced an actionable fix:
 - **patch** — all addressed items are refinements, clarifications, or fixes to existing behavior
 
 ### Close Decision Logic
+
+Close decisions are **preliminary** at this stage — they will be re-evaluated after Phase 4 execution, since items may transition from `addressed` to `failed`.
 
 For each retro issue:
 - If **all items** in the issue are `addressed` → `action: close`
@@ -152,22 +172,38 @@ Triage Summary:
 Proceed with execution?
 ```
 
-Use `AskUserQuestion` to confirm. The user may:
-- Reclassify items (addressed ↔ out-of-scope)
-- Override the semver decision
-- Approve and proceed
+```
+AskUserQuestion:
+  questions:
+    - question: "Does this triage look right?"
+      header: "Triage"
+      options:
+        - label: "Approved"
+          description: "Proceed to execution"
+        - label: "Adjust"
+          description: "I want to reclassify items or change the semver"
+        - label: "Abort"
+          description: "Stop the pipeline"
+      multiSelect: false
+```
+
+If the user selects **Adjust**, they may reclassify items (addressed ↔ out-of-scope) or override the semver decision. Re-present the triage map after adjustments.
 
 ---
 
 ## Phase 4: Execute
 
-Count the addressed items from the triage map and route:
+Count the addressed items from the triage map and route.
+
+**If zero items are addressed:** skip execution entirely. Proceed to Phase 5 (no version bump needed) and Phase 6 (comment-only on all issues noting everything was deferred).
+
+Otherwise:
 
 ### Solo Path (1-2 addressed items)
 
 Invoke `/scram-solo` for each addressed item **sequentially**. For each item:
 
-1. Write a context brief in the format expected by the SCRAM brief template (`${CLAUDE_PLUGIN_ROOT}/refs/brief-template.md`), derived from the scramstorm's winning option for that item
+1. Write a context brief in the format expected by the SCRAM brief template (`scram/refs/brief-template.md`), derived from the scramstorm's winning option for that item
 2. Provide the target files identified by the scramstorm
 3. Let the solo flow run its normal interactive pipeline (Assess → Brief → Implement → Review → Merge)
 
@@ -186,11 +222,16 @@ The sprint runs its full interactive pipeline — the user participates as usual
 - **Solo failure** (dev agent failure, review rejection): skip the failed item, mark it as `failed` in the triage map, continue with remaining items. Failed items are reported in Phase 6.
 - **Sprint failure**: halt the pipeline and surface the failure to the user. Sprint failures are too complex to skip past — the user must decide how to proceed.
 
+### Post-Execution: Re-evaluate Close Decisions
+
+After all solo runs complete, re-evaluate close decisions for any issue that had items transition from `addressed` to `failed`:
+- If an issue now has `failed` items → change its close decision from `close` to `comment-only`
+
 ---
 
 ## Phase 5: Finalize
 
-After all scram runs complete successfully:
+After all scram runs complete (including any that were skipped due to failure):
 
 ### 1. Determine New Version
 
