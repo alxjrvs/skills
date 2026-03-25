@@ -20,22 +20,25 @@ Before starting a new run, check for existing SCRAM sessions:
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/scram-discover.sh
 ```
 
-If sessions are found, present them to the user and offer to resume or start fresh:
+**Auto-resume logic:**
+- **0 sessions found** → proceed to scope gathering (step 2)
+- **Exactly 1 active session found** → auto-resume. Announce: `Resuming: <feature> at <gate>`. Read the session manifest and route to the appropriate flow (`/scram-solo` or `/scram-sprint`) based on the manifest's `run_type` or story count.
+- **2+ sessions found** → prompt the user to pick which one:
 
 ```
 AskUserQuestion:
   questions:
-    - question: "Found existing SCRAM session(s). Resume or start fresh?"
-      header: "Existing Session"
+    - question: "Multiple SCRAM sessions found. Which one?"
+      header: "Session"
       options:
-        - label: "Resume"
-          description: "Continue the existing session"
+        - label: "<feature-1> (gate: <gate>)"
+          description: "<workspace path 1>"
+        - label: "<feature-2> (gate: <gate>)"
+          description: "<workspace path 2>"
         - label: "Start fresh"
-          description: "Start a new SCRAM run"
+          description: "Ignore existing sessions"
       multiSelect: false
 ```
-
-If resuming, read the session manifest and route to the appropriate flow (`/scram-solo` or `/scram-sprint`) based on the manifest's `run_type` or story count.
 
 ---
 
@@ -47,31 +50,16 @@ Check for recent brainstorm workspaces:
 ls -dt ~/.scram/brainstorm--$(basename "$PWD")--* 2>/dev/null | head -5
 ```
 
-If found, use `AskUserQuestion` to ask if this work came from a brainstorm:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "Found recent brainstorm workspace(s). Did this work come from a scramstorm?"
-      header: "Scramstorm Handoff"
-      options:
-        - label: "Yes"
-          description: "Import brainstorm results"
-        - label: "No"
-          description: "Start fresh"
-      multiSelect: false
-```
-
-If yes:
-1. Read `handoff.md` from the brainstorm workspace
-2. Display gate eligibility (which gates the brainstorm marked as skippable)
-3. Route to `/scram-sprint` with `prior_brainstorm` context -- brainstorms always produce multi-story work
+**Auto-import logic:**
+- **Workspace found with `handoff.md`** → auto-import. Announce: `Imported scramstorm results from <workspace>`. Read `handoff.md`, display gate eligibility, and route to `/scram-sprint` with `prior_brainstorm` context — brainstorms always produce multi-story work.
+- **Workspace found without `handoff.md`** → warn but skip: `Found brainstorm workspace <path> but no handoff.md — skipping (incomplete brainstorm?)`. This alerts the user in case a scramstorm crashed before writing handoff.
+- **No workspace found** → skip silently, proceed to scope gathering.
 
 ---
 
 ## 3. Scope Assessment
 
-If no resume and no handoff, gather requirements:
+If no resume and no handoff, gather requirements with a single prompt:
 
 ```
 AskUserQuestion:
@@ -82,16 +70,7 @@ AskUserQuestion:
         placeholder: "Describe the feature, fix, or change..."
 ```
 
-Then ask about scope boundaries -- what is NOT included:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "What is explicitly out of scope?"
-      header: "Boundaries"
-      textInput:
-        placeholder: "Anything to exclude or defer..."
-```
+Infer scope boundaries from the answer and codebase analysis. If boundaries are genuinely ambiguous (e.g., the feature touches multiple subsystems and it's unclear which are included), ask a targeted follow-up. Do not ask a generic "what's out of scope?" question.
 
 ---
 
@@ -111,46 +90,16 @@ Based on the assessment, evaluate these rules top-to-bottom. The first match win
 
 ---
 
-## 5. Confirm and Invoke
+## 5. Route and Invoke
 
-Present the routing decision to the user:
+Announce the routing decision and proceed immediately:
 
 ```
 Routing: /scram-<flow>
 Rationale: <one-line explanation>
 ```
 
-Then confirm with `AskUserQuestion`:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "Route to <flow>?"
-      header: "SCRAM Flow"
-      options:
-        - label: "Proceed"
-          description: "Start the <flow> flow"
-        - label: "Override"
-          description: "I want a different flow"
-      multiSelect: false
-```
-
-If the user selects "Override", ask which flow they want:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "Which flow?"
-      header: "Override"
-      options:
-        - label: "Solo"
-          description: "Single story, lightweight"
-        - label: "Sprint"
-          description: "Multi-story, full gates and streams"
-        - label: "Scramstorm"
-          description: "Research and brainstorm, not implementation"
-      multiSelect: false
-```
+No confirmation prompt — if the user disagrees, they'll interrupt naturally.
 
 Invoke the target skill using the `Skill` tool:
 

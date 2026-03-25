@@ -111,67 +111,39 @@ If the user has not provided enough context, ask clarifying questions. Required:
 - **Features to implement** (with enough detail to document)
 - **Scope boundaries** (what is NOT included)
 
-### Ask About External Tracker
+### Infer External Tracker
 
-Use `AskUserQuestion` to gather tracker preference:
+Auto-detect tracker availability — no prompt:
 
-```
-AskUserQuestion:
-  questions:
-    - question: "Do you have an external tracker for this work?"
-      header: "Tracker"
-      options:
-        - label: "No tracker"
-          description: "Track stories in the SCRAM backlog only"
-        - label: "GitHub Issues"
-          description: "Create and update issues on a GitHub repo"
-        - label: "Linear"
-          description: "Sync stories to a Linear project"
-        - label: "Jira"
-          description: "Sync stories to a Jira board"
-      multiSelect: false
-```
+- Check for `gh` CLI: `which gh 2>/dev/null`
+- If `gh` is available → default to GitHub Issues. Announce: `Tracker: GitHub Issues (gh detected)`
+- If `gh` is not available → default to none. Announce: `Tracker: none`
 
-If tracker is selected, ask for the project/board reference. If tracker tools aren't available (no `gh` CLI, no MCP), warn the user and fall back to manual tracking suggestions.
+The user can interrupt to specify a different tracker if needed.
 
-### Gate-Omit Assessment
+### Infer Gate Inclusion
 
-Use `AskUserQuestion` to determine which optional gates have work:
+Infer which optional gates are needed from the requirements — no prompt:
 
-```
-AskUserQuestion:
-  questions:
-    - question: "Does this work need new architectural decision records (ADRs)?"
-      header: "G1: ADRs"
-      options:
-        - label: "Yes"
-          description: "New dependencies, schema changes, or abstractions need documenting"
-        - label: "No"
-          description: "No new architectural decisions"
-      multiSelect: false
-    - question: "Does this work need new or updated user-facing documentation?"
-      header: "G2: Docs"
-      options:
-        - label: "Yes"
-          description: "New API docs, behavior docs, usage examples needed"
-        - label: "No"
-          description: "No user-facing doc changes"
-      multiSelect: false
-    - question: "Are implementation stories already defined with briefs?"
-      header: "G3: Breakdown"
-      options:
-        - label: "No — need breakdown"
-          description: "Stories need to be derived from the work scope"
-        - label: "Yes — stories exist"
-          description: "Stories are already defined (e.g., from a prior scramstorm)"
-      multiSelect: false
-```
+- **G1 (ADRs):** Include if requirements mention new dependencies, schema changes, new abstractions, or technology choices. Detect by scanning for keywords like "new package", "database", "migration", "schema", "dependency", "architecture".
+- **G2 (Docs):** Include if requirements mention user-facing behavior changes, new APIs, CLI changes, or public interfaces.
+- **G3 (Breakdown):** Skip if prior scramstorm provided briefs (check `handoff.md` and verify `briefs` list is non-empty). If `handoff.md` exists but `briefs: []` is empty, include G3. Include by default otherwise.
 
-Only include gates that have work to do. Gates omitted via `scram-state.sh advance $SCRAM_WORKSPACE <gate> --skip`.
+Announce: `Gates: G1 (new schema), G3 | Skipped: G2 (no user-facing changes)`
 
-### Present Team Roster
+Gates omitted via `scram-state.sh advance $SCRAM_WORKSPACE <gate> --skip`. The user can interrupt to override gate decisions.
 
-**Always display the team roster as plain text first**, then ask for confirmation:
+### Compose and Announce Team Roster
+
+Auto-compose the team based on scope signals and announce — no approval prompt:
+
+- UI/UX files in scope → include Designer (Esak)
+- CI/CD, build config, hooks in scope → include Dev Tooling Maintainer (Himon)
+- Public-facing docs, README, CLI help → include Marketer (Glorious Godfrey)
+- Scale dev count to anticipated story count (1 dev per story, max 5)
+- Always include: Metron (Merge Maintainer), Highfather (Code Maintainer), at least 1 Doc Specialist
+
+Announce the roster as plain text and proceed:
 
 ```
 Team:
@@ -180,24 +152,10 @@ Team:
   Metron (Merge Maintainer, sonnet)
   Highfather (Code Maintainer, sonnet)
   Beautiful Dreamer (Doc Specialist, sonnet)
-  Esak (Designer, sonnet) [optional — include if feature has UI/UX]
-  Himon (Dev Tooling, sonnet) [optional — include if feature touches CI/CD]
+  Esak (Designer, sonnet) [included — UI files in scope]
 ```
 
-Then use `AskUserQuestion` to confirm:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "Does this team roster look right?"
-      header: "Team"
-      options:
-        - label: "Approved"
-          description: "Proceed with this team"
-        - label: "Adjust"
-          description: "I want to change the team composition"
-      multiSelect: false
-```
+The user can interrupt to adjust composition before work begins.
 
 Call `scram-state.sh advance $SCRAM_WORKSPACE G0` at gate completion.
 
@@ -366,14 +324,8 @@ Use `scram-backlog.sh transition` to update story status.
 
 Do not embed brief contents, doc sections, or file contents inline in the dispatch prompt. Agents read their own context from disk.
 
-**Pre-dispatch worktree init:** Before dispatching each `scram:developer-impl` agent, run `worktree-init.sh` in the agent's assigned worktree:
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/worktree-init.sh <integration-branch> <story-slug>
-```
-If it exits non-zero, do not dispatch the agent — diagnose the failure and resolve before proceeding.
-
 **Dispatch rules:**
-- **P0 stories run first as a separate wave** with a quality gate before P1+ begins
+- **P0 stories run first as a separate wave** — the quality gate is all P0 stories in `merged` status, enforced by `scram-backlog.sh dispatchable` (which suppresses P1+ output until all P0s are merged)
 - Max **5 concurrent dev agents**
 - Each agent works **one story at a time**, completing all three TDD phases
 - **Do not dispatch a story whose `Depends On` column has unmerged stories** — `scram-backlog.sh dispatchable` enforces this
@@ -446,21 +398,7 @@ After all three streams complete:
 6. Verify `SCRAM_WORKSPACE/backlog.md` shows all stories as `merged`
 7. **Stash cleanup:** Run `git stash list`. If stashes exist, notify the user with details and offer to drop them. Do not silently drop stashes.
 8. Close remaining tracker issues (if configured), add summary comment
-9. Ask the user about a retrospective:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "All stories are merged and reviewed. Would you like a team retrospective?"
-      header: "Retrospective"
-      options:
-        - label: "Yes (Recommended)"
-          description: "Maintainers review how the run went and suggest SCRAM improvements"
-        - label: "No"
-          description: "Skip the retrospective"
-      multiSelect: false
-```
-
+9. Announce: `Running retrospective` and proceed to G5. Retros are how SCRAM improves itself — always run them.
 10. Merge or PR the integration branch to `main`
 11. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
 12. If no retrospective: remove the `scram-session-*` memory reference

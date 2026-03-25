@@ -110,30 +110,27 @@ Populated during Frame if known; agents confirm or expand during research.>
 single_recommendation | ranked_options | exploration
 ```
 
-### Ask About Issue Tracker
+### Infer Issue Tracker
 
-Use `AskUserQuestion`:
+Auto-detect tracker availability — no prompt:
 
-```
-AskUserQuestion:
-  questions:
-    - question: "Record the brainstorm results to an issue tracker?"
-      header: "Tracker"
-      options:
-        - label: "No tracker"
-          description: "Results saved to workspace only"
-        - label: "GitHub Issues"
-          description: "Create an issue with the synthesized options"
-        - label: "Linear"
-          description: "Create a Linear issue with the results"
-      multiSelect: false
-```
+- Check for `gh` CLI: `which gh 2>/dev/null`
+- If `gh` is available → default to GitHub Issues. Announce: `Tracker: GitHub Issues (gh detected)`
+- If `gh` is not available → default to none. Announce: `Tracker: none (results saved to workspace only)`
 
-If tracker selected, ask for the project/board reference. If tracker tools aren't available, provide the formatted output for manual creation.
+The user can interrupt to specify a different tracker.
 
-### Present the Team
+### Compose and Announce Team
 
-**Always display the team roster as plain text first**, then ask for confirmation. The user must see the full composition before approving.
+Auto-compose the team based on the problem domain and announce — no approval prompt. The core team (Orion, Metron, Highfather, Forager) is always present. Add optional specialists based on signals:
+
+- User-facing / API ergonomics → include Beautiful Dreamer
+- Problem feels stuck / false dichotomy → include Scott Free
+- CI/CD / toolchain → include Himon
+- Public docs / SEO / onboarding → include Glorious Godfrey
+- Needs adversarial critique → include Desaad
+
+Announce the roster and proceed:
 
 ```
 Brainstorm Team:
@@ -141,25 +138,10 @@ Brainstorm Team:
   Metron (Merge Maintainer, sonnet) — the analyst
   Highfather (Code Maintainer, sonnet) — the steward
   Forager (Dev, sonnet) — the pragmatist
-  [Beautiful Dreamer (Doc Specialist, sonnet) — the advocate]     [if applicable]
-  [Scott Free (Dev, sonnet) — the escapist]                       [if applicable]
-  [Himon (Dev Tooling, sonnet) — the toolsmith]                   [if applicable]
+  Himon (Dev Tooling, sonnet) — the toolsmith [included — CI/CD in scope]
 ```
 
-Then use `AskUserQuestion` to confirm:
-
-```
-AskUserQuestion:
-  questions:
-    - question: "Does this brainstorm team look right?"
-      header: "Team"
-      options:
-        - label: "Approved"
-          description: "Proceed with this team"
-        - label: "Adjust"
-          description: "I want to change the team composition"
-      multiSelect: false
-```
+The user can interrupt to adjust before research begins.
 
 ## Phase 1.5: Prior Retro Scan
 
@@ -426,24 +408,11 @@ If the brainstorm produced meaningful architectural decisions — approach selec
 
 If the user opted in to issue tracking during Frame, create an issue with the final synthesized options as the body.
 
-### Retrospective (optional)
+### Retrospective
 
-After presenting results, use `AskUserQuestion`:
+After presenting results, announce: `Running retrospective` and proceed. Retros are how scramstorm improves itself — always run them.
 
-```
-AskUserQuestion:
-  questions:
-    - question: "Run a quick retro on how the brainstorm went?"
-      header: "Retro"
-      options:
-        - label: "Yes"
-          description: "Team reflects on what worked and what could improve"
-        - label: "No"
-          description: "Skip the retrospective"
-      multiSelect: false
-```
-
-If yes, dispatch the **core team** (Orion, Metron, Highfather, Forager) one more time. Each reads the full workspace (problem, research, positions, debate, options) and writes **one attributed reflection** answering:
+Dispatch the **core team** (Orion, Metron, Highfather, Forager) one more time. Each reads the full workspace (problem, research, positions, debate, options) and writes **one attributed reflection** answering:
 - What worked well in this brainstorm?
 - What was missing, confusing, or wasteful in the process?
 - One specific, actionable change to the scramstorm skill
