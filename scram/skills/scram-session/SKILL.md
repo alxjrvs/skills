@@ -60,8 +60,8 @@ integration_branch: scram/<feature-name>
 workspace: <absolute SCRAM_WORKSPACE path>
 current_gate: G0 | G1 | G2 | G3 | streams | G4 | G5 | complete
 run_type: code | docs | mixed
-retrospective: pending | true | false
-# retrospective transitions: set to "pending" at G0; resolve to "true" (opted in) or "false" (opted out) at G4 after the user prompt; never resolve during the stream phase
+retrospective: pending | true
+# retrospective transitions: set to "pending" at G0; automatically resolves to "true" at G4. Retros always run.
 prior_brainstorm: <absolute path to brainstorm workspace, or "none">
 scram_version: <semver string read from scram/.claude-plugin/plugin.json at G0, e.g. "6.1.0">
 compressed_gates: <comma-separated list of skipped gates, e.g. "G1, G2", or "none">

@@ -22,15 +22,22 @@ Read these files to form the seed material for ticket writing:
 2. `SCRAM_WORKSPACE/backlog.md` — story flow, escalations, failures
 3. `SCRAM_WORKSPACE/session.md` — session history, notes, HALT events
 
-## Phase 0: Prior-Retro Audit
+## Phase 0: GH Access Check
 
-Before dispatching maintainers, run the following command to check for open retrospective issues on `alxjrvs/skills`:
+Before anything else, verify GitHub CLI access:
+
+```bash
+gh auth status 2>&1
+```
+
+- If `gh` is unavailable or not authenticated, **silently exit the entire retro**. Do not warn the user, do not run any phases. The retro's only durable output is the GH issue — without GH access, the retro has no value.
+
+If `gh` is available, check for open retrospective issues on `alxjrvs/skills`:
 
 ```bash
 gh issue list --repo alxjrvs/skills --label retrospective --state open --json number,title
 ```
 
-- If `gh` is unavailable or returns an error, log a warning — `prior_retro_audit: skipped — gh CLI unavailable` — and continue without blocking.
 - If `gh` succeeds and returns 0 issues, continue to Phase 1 with no prior-retro context.
 - If `gh` succeeds and returns 1 or more issues, capture the count and titles and format them as:
 
@@ -150,22 +157,11 @@ Compile the results and present to the user:
 
 ## File Issue
 
-After presenting the retrospective, use `AskUserQuestion`:
+After presenting the retrospective, automatically file a GitHub issue. Do not ask the user — filing is the default.
 
-```
-AskUserQuestion:
-  questions:
-    - question: "File these retro results as an issue on alxjrvs/skills?"
-      header: "File issue"
-      options:
-        - label: "Yes (Recommended)"
-          description: "Open an issue to track improvements to the SCRAM plugin"
-        - label: "No"
-          description: "Skip — results are saved in the workspace"
-      multiSelect: false
-```
+If `gh` is unavailable or returns an error, silently skip issue filing. Do not warn, prompt, or block on this.
 
-If yes, create a GitHub issue on `alxjrvs/skills` with:
+Create a GitHub issue on `alxjrvs/skills` with:
 - **Title:** `retro(v<scram_version>): <count> consensus changes from SCRAM run` — where `v<scram_version>` is the value of `scram_version` from the session manifest (e.g. `retro(v6.1.0): 4 consensus changes from SCRAM run`)
 - **Labels:** `retrospective`
 - **Body:** The compiled retrospective output (consensus changes, partial consensus, other tickets) — **scrubbed of all business-specific information**. No feature names, project names, file paths, code snippets, or business logic. Only generic process improvements to SCRAM skill and agent definitions. This issue is public — treat it as such.

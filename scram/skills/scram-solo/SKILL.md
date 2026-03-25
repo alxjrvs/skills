@@ -15,7 +15,7 @@ Solo uses the same team (New Gods characters) and the same quality discipline (T
 ## Flow
 
 ```
-Assess --> Brief --> Implement --> Review --> Merge
+Assess --> Brief --> Implement --> Review --> Merge --> Retro
 ```
 
 Each step completes before the next begins. No concurrent streams, no gates, no persistent maintainer team.
@@ -140,9 +140,21 @@ Metron merges to the source branch following `${CLAUDE_PLUGIN_ROOT}/refs/merge-p
 
 If tests fail after commit, revert the commit and escalate to the user.
 
-Clean up the workspace: `rm -rf "$SCRAM_WORKSPACE"`
-
 Report completion to the user with a summary: files changed, tests passing, commit SHA.
+
+---
+
+## Step 6: Retrospective
+
+After merge, automatically dispatch `scram:scram-retro` with:
+
+- `SCRAM_WORKSPACE` — the solo workspace path (recreate it if already cleaned up: `mkdir -p "$SCRAM_WORKSPACE/retro"`)
+- `in_flight_path` — `SCRAM_WORKSPACE/retro/in-flight.md`
+- `session_context` — `{ total_stories: 1, escalations: 0, halt_events: 0, feature_name: "<story-slug>" }`
+
+Do not ask the user whether to run the retro — it runs automatically. The retro facilitator checks GH access first and silently exits if unavailable.
+
+After the retro completes, clean up the workspace: `rm -rf "$SCRAM_WORKSPACE"`
 
 ---
 

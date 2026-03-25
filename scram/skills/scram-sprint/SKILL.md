@@ -18,11 +18,11 @@ G0: Environment ──► [G1: ADRs] ──► [G2: Docs] ──► G3: Breakdow
     ┌─────────────────────────────────────────────────────────────────┘
     │
     ├──► Dev Stream (RED → GREEN → REFACTOR) ──┐
-    ├──► Merge Stream ─────────────────────────┤──► G4: Final Review ──► [G5: Retro]
+    ├──► Merge Stream ─────────────────────────┤──► G4: Final Review ──► G5: Retro
     └──► Doc Refinement Stream ────────────────┘
 ```
 
-Gates in brackets are opt-in. Streams are concurrent. Dev work enforces Red-Green-Refactor per story. G5 is optional.
+Streams are concurrent. Dev work enforces Red-Green-Refactor per story. G5 runs automatically after G4.
 
 ---
 
@@ -398,10 +398,9 @@ After all three streams complete:
 6. Verify `SCRAM_WORKSPACE/backlog.md` shows all stories as `merged`
 7. **Stash cleanup:** Run `git stash list`. If stashes exist, notify the user with details and offer to drop them. Do not silently drop stashes.
 8. Close remaining tracker issues (if configured), add summary comment
-9. Announce: `Running retrospective` and proceed to G5. Retros are how SCRAM improves itself — always run them.
-10. Merge or PR the integration branch to `main`
-11. Update session manifest — set `current_gate` to `complete` (or `G5` if retrospective enabled)
-12. If no retrospective: remove the `scram-session-*` memory reference
+9. Merge or PR the integration branch to `main`
+10. Update session manifest — set `current_gate` to `G5`
+11. Proceed to G5 automatically. Retros are how SCRAM improves itself — never skip them.
 13. **Follow-up story sweep:** Sweep `session.md` for items marked "partial," "deferred," or "ready for future wiring." Each must become a new backlog story or an explicit decision that partial work is acceptable.
 14. **Workspace cleanup:**
 
@@ -424,14 +423,16 @@ Call `scram-state.sh advance $SCRAM_WORKSPACE G4` at gate completion.
 
 ---
 
-## G5: Retrospective (optional)
+## G5: Retrospective
 
-If the user opted in during G4, dispatch `scram:scram-retro` with:
+G5 runs automatically after G4 completes — do not ask the user whether to run it.
+
+Dispatch `scram:scram-retro` with:
 - `SCRAM_WORKSPACE` — absolute path to the workspace
 - `in_flight_path` — `SCRAM_WORKSPACE/retro/in-flight.md`
 - `session_context` — `{ total_stories, escalations, halt_events, feature_name }`
 
-The retro facilitator is self-contained. After the retro completes, call `scram-state.sh advance $SCRAM_WORKSPACE complete` and remove the `scram-session-*` memory reference.
+The retro facilitator is self-contained — it checks GH access first and silently exits if unavailable. After the retro completes (or silently exits), call `scram-state.sh advance $SCRAM_WORKSPACE complete` and remove the `scram-session-*` memory reference.
 
 ---
 
