@@ -2,7 +2,7 @@
 # worktree-init.sh — Verify worktree isolation and create story branch.
 # Usage: worktree-init.sh <integration-branch> <story-slug>
 # Exit 0: worktree verified, story branch created
-# Exit 1: not in a worktree
+# Exit 1: bad integration branch prefix, not in a worktree, or usage error
 # Exit 2: worktree not branched from integration branch
 # Exit 3: story branch creation failed
 # Exit 4: HEAD not on story branch after creation
@@ -16,6 +16,16 @@ fi
 
 INTEGRATION_BRANCH="$1"
 STORY_SLUG="$2"
+
+# Guard: integration branch must start with scram/
+case "$INTEGRATION_BRANCH" in
+  scram/*) ;;
+  *)
+    echo "FAIL: Integration branch '$INTEGRATION_BRANCH' must start with 'scram/' (e.g., scram/my-feature)" >&2
+    echo "  integration_branch: $INTEGRATION_BRANCH" >&2
+    exit 1
+    ;;
+esac
 
 # Derive feature name from integration branch (e.g., scram/my-feature -> my-feature)
 FEATURE_NAME="${INTEGRATION_BRANCH#scram/}"

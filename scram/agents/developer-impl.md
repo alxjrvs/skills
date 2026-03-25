@@ -45,13 +45,13 @@ When assigned a story (including escalated stories that failed on a previous att
    ```
    The integration branch name is provided in your dispatch prompt. **NEVER work directly on `main`.**
    **NEVER work from a rejected branch** — if you receive a redispatch, always branch fresh from the current integration branch tip, not from the prior story's branch.
-2. **Isolation Contract** — before making ANY file modifications, verify all four:
-   - `pwd` is within your assigned worktree path (not the main repo)
-   - `git rev-parse --abbrev-ref HEAD` matches your story branch (`story/<feature-name>/<story-slug>`)
-   - `git status` shows no untracked files from other stories
-   - You are NOT on the integration branch itself — you must be on a story branch created FROM it
-   If ANY check fails, **STOP and report to the orchestrator**. Do not proceed. Do not commit on the integration branch directly.
-   Report with `status: failed` and `failure_reason: worktree_isolation_missing`. The orchestrator will write a `HALT` file and investigate.
+2. **Isolation Contract** — before making ANY file modifications, run:
+   ```bash
+   bash ${CLAUDE_PLUGIN_ROOT}/scripts/worktree-init.sh <integration-branch> <story-slug>
+   ```
+   - **Exit 0**: isolation verified and story branch created — proceed
+   - **Exit 1, 3, or 4**: STOP and report to the orchestrator with `status: failed` and `failure_reason: worktree_isolation_missing`. The orchestrator will write a `HALT` file and investigate.
+   - **Exit 2** (stale worktree): run `git merge <integration-branch>` to bring the worktree up to date, then re-run the script. If it still fails, report as above.
 3. **Re-verify before every commit** — run `git rev-parse --abbrev-ref HEAD` again before `git commit`. Include the branch name and commit SHA in your completion report.
 
 ## Pre-flight

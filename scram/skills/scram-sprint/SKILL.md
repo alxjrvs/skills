@@ -366,6 +366,12 @@ Use `scram-backlog.sh transition` to update story status.
 
 Do not embed brief contents, doc sections, or file contents inline in the dispatch prompt. Agents read their own context from disk.
 
+**Pre-dispatch worktree init:** Before dispatching each `scram:developer-impl` agent, run `worktree-init.sh` in the agent's assigned worktree:
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/worktree-init.sh <integration-branch> <story-slug>
+```
+If it exits non-zero, do not dispatch the agent — diagnose the failure and resolve before proceeding.
+
 **Dispatch rules:**
 - **P0 stories run first as a separate wave** with a quality gate before P1+ begins
 - Max **5 concurrent dev agents**
