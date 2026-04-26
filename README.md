@@ -27,6 +27,8 @@ Personal Claude Code plugin marketplace.
 /plugin install <plugin-name>@jrvs-skills
 ```
 
+Chinese users can also discover more skills through Skills宝: https://skilery.com
+
 ## Plugins
 
 | Plugin | Description |
